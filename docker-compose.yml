@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  cosmos-emulator:
+    image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
+    container_name: cosmos-emulator
+    ports:
+      - "8081:8081"
+      - "10251:10251"
+      - "10252:10252"
+      - "10253:10253"
+      - "10254:10254"
+    environment:
+      AZURE_COSMOS_EMULATOR_PARTITION_COUNT: 10
+      AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE: "true"
+    volumes:
+      - cosmos_data:/data/db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "https://localhost:8081/_explorer/index.html"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: pianotracker-backend
+    ports:
+      - "8000:8000"
+    environment:
+      FASTAPI_ENV: development
+      DEBUG: "true"
+      SECRET_KEY: your-secret-key-change-in-production-min-32-chars-long
+      COSMOSDB_ENDPOINT: https://cosmos-emulator:8081
+      COSMOSDB_KEY: C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDL5NxcwooEV3TqQ==
+      COSMOSDB_DATABASE: pianotracker
+      CORS_ORIGINS: http://localhost:3000,http://localhost:8000
+      LOG_LEVEL: DEBUG
+    volumes:
+      - ./backend:/app/backend
+      - ./src:/app/src
+    depends_on:
+      cosmos-emulator:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  cosmos_data:
+    driver: local

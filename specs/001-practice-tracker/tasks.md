@@ -25,7 +25,7 @@ This document breaks down the implementation plan into actionable tasks organize
 
 ### Backend Setup
 
-- [ ] T001 Initialize Python backend project structure with FastAPI
+- [X] T001 Initialize Python backend project structure with FastAPI
   - Create: `backend/src/main.py`
   - Create: `backend/src/__init__.py`
   - Create: `backend/requirements.txt` with FastAPI, Uvicorn, Pydantic, python-jose, bcrypt, azure-cosmos
@@ -33,13 +33,13 @@ This document breaks down the implementation plan into actionable tasks organize
   - Create: `backend/.env.example` template for environment variables
   - Install dependencies and verify `uvicorn src.main:app --reload` starts successfully
 
-- [ ] T002 Configure backend environment and dependencies
+- [X] T002 Configure backend environment and dependencies
   - Create: `backend/.env` (copy from .env.example)
   - Add FASTAPI_ENV, DEBUG, SECRET_KEY, JWT_ALGORITHM, JWT_EXPIRATION_MINUTES, COSMOSDB_ENDPOINT, COSMOSDB_KEY, COSMOSDB_DATABASE, CORS_ORIGINS
   - Create: `backend/src/config.py` to load environment variables using Pydantic BaseSettings
   - Verify all required env vars are read correctly with test configuration script
 
-- [ ] T003 Setup Python virtual environment and Docker support
+- [X] T003 Setup Python virtual environment and Docker support
   - Create: `backend/Dockerfile` for containerized deployment
   - Create: `docker-compose.yml` for local development (includes CosmosDB emulator)
   - Create: `.dockerignore` to exclude unnecessary files
@@ -47,7 +47,7 @@ This document breaks down the implementation plan into actionable tasks organize
 
 ### Frontend Setup
 
-- [ ] T004 Initialize TypeScript frontend project with Webpack
+- [X] T004 Initialize TypeScript frontend project with Webpack
   - Create: `frontend/src/main.ts` entry point
   - Create: `frontend/webpack.config.js` with TypeScript and CSS loaders
   - Create: `frontend/tsconfig.json` with strict mode enabled
@@ -56,7 +56,7 @@ This document breaks down the implementation plan into actionable tasks organize
   - Create: `frontend/public/styles.css` with mobile-first responsive design
   - Run `npm run build` and verify bundle size is < 200KB
 
-- [ ] T005 Configure frontend environment and build pipeline
+- [X] T005 Configure frontend environment and build pipeline
   - Create: `frontend/.env.example` template for API_BASE_URL, JWT_STORAGE_KEY
   - Create: `frontend/.env` (copy from .env.example, set API_BASE_URL=http://localhost:8000)
   - Create: `frontend/jest.config.js` for unit testing
@@ -64,7 +64,7 @@ This document breaks down the implementation plan into actionable tasks organize
   - Create: `frontend/.gitignore` to exclude node_modules, dist, coverage
   - Verify `npm run build` and `npm test` work without errors
 
-- [ ] T006 Setup TypeScript types and validation schemas
+- [X] T006 Setup TypeScript types and validation schemas
   - Create: `frontend/src/types/index.ts` with interfaces: User, Session, AuthResponse, SessionCreateRequest, etc.
   - Create: `frontend/src/utils/validation.ts` with Zod schemas for all forms (register, login, session creation)
   - Create: `frontend/src/utils/constants.ts` with constants: PRACTICE_TYPES, TEMPO_MIN, TEMPO_MAX, API_BASE_URL
@@ -72,7 +72,7 @@ This document breaks down the implementation plan into actionable tasks organize
 
 ### Database Setup
 
-- [ ] T007 Setup Azure CosmosDB (cloud or emulator) and create containers
+- [X] T007 Setup Azure CosmosDB (cloud or emulator) and create containers
   - Create: `infrastructure/azure/cosmos-setup.sh` script to create database and containers
   - Or use Azure CLI to manually create:
     - Database: `pianotracker`
@@ -81,7 +81,7 @@ This document breaks down the implementation plan into actionable tasks organize
   - Verify connection by running test query: `SELECT * FROM c WHERE c.id = 'test'`
   - Document CosmosDB endpoint, key, and connection string in setup guide
 
-- [ ] T008 Create database initialization and migration infrastructure
+- [X] T008 Create database initialization and migration infrastructure
   - Create: `backend/src/db/migrations.py` with functions to create containers and indexes if not exist
   - Create composite indexes on:
     - `practice_sessions`: `(user_id, date DESC)`
@@ -91,7 +91,7 @@ This document breaks down the implementation plan into actionable tasks organize
 
 ### CI/CD Setup
 
-- [ ] T009 Configure GitHub Actions CI/CD pipeline
+- [X] T009 Configure GitHub Actions CI/CD pipeline
   - Create: `.github/workflows/ci.yml` with jobs:
     - Lint frontend (ESLint)
     - Test frontend (Jest, coverage)
@@ -103,7 +103,7 @@ This document breaks down the implementation plan into actionable tasks organize
   - Configure artifacts: save test coverage reports
   - Test pipeline with a dummy commit
 
-- [ ] T010 Setup project documentation structure
+- [X] T010 Setup project documentation structure
   - Create: `README.md` (project overview, quick start)
   - Create: `CONTRIBUTING.md` (development guidelines, PR process)
   - Create: `docs/API_GUIDE.md` (generated from OpenAPI)
