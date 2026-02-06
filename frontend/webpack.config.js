@@ -1,5 +1,6 @@
 const path = require('path');
 const webpack = require('webpack');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = (env, argv) => {
   const isDevelopment = argv.mode === 'development';
@@ -83,6 +84,14 @@ module.exports = (env, argv) => {
       minimize: isProduction
     },
     plugins: [
+      new HtmlWebpackPlugin({
+        template: './public/index.html',
+        inject: 'body',
+        minify: isProduction ? {
+          removeComments: true,
+          collapseWhitespace: true
+        } : false
+      }),
       new webpack.DefinePlugin({
         'process.env.NODE_ENV': JSON.stringify(argv.mode),
         'process.env.API_BASE_URL': JSON.stringify(
