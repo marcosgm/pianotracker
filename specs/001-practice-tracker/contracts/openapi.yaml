@@ -1,0 +1,819 @@
+openapi: 3.0.3
+info:
+  title: Piano Practice Session Tracker API
+  description: |
+    REST API for tracking piano practice sessions. Enables users to authenticate, log practice sessions
+    with type and tempo, and view historical session data with statistics.
+    
+    ## Authentication
+    All endpoints except `/auth/register` and `/auth/login` require JWT authentication.
+    Include the access token in the Authorization header: `Authorization: Bearer <token>`
+    
+    ## Rate Limiting
+    - Auth endpoints: 5 requests per minute per IP
+    - Other endpoints: 100 requests per minute per user
+    
+    ## Error Responses
+    All errors follow RFC 7807 (Problem Detail) format with `detail` field for error messages.
+  version: 1.0.0
+  contact:
+    name: Piano Tracker API Support
+    email: support@pianotracker.example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.pianotracker.azurewebsites.net
+    description: Production server
+  - url: https://api.pianotracker-staging.azurewebsites.net
+    description: Staging server
+  - url: http://localhost:8000
+    description: Local development server
+
+tags:
+  - name: Authentication
+    description: User registration, login, and token management
+  - name: Sessions
+    description: Practice session CRUD operations and statistics
+
+paths:
+  /api/auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register new user account
+      description: |
+        Creates a new user account with email and password. Email must be unique.
+        Password is hashed with bcrypt before storage (never stored in plain text).
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegister'
+            examples:
+              validUser:
+                summary: Valid registration
+                value:
+                  email: john.pianist@example.com
+                  password: SecurePass123
+                  name: John Pianist
+      responses:
+        '201':
+          description: User successfully created and logged in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Invalid input (email format, password length)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidEmail:
+                  summary: Invalid email format
+                  value:
+                    detail: Invalid email format
+                shortPassword:
+                  summary: Password too short
+                  value:
+                    detail: Password must be at least 8 characters
+        '409':
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Email already registered
+
+  /api/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login with email and password
+      description: |
+        Authenticates user and returns JWT access token (15min) and refresh token (7d).
+        Refresh token is returned in httpOnly cookie for security.
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLogin'
+      responses:
+        '200':
+          description: Successfully authenticated
+          headers:
+            Set-Cookie:
+              description: Refresh token in httpOnly cookie
+              schema:
+                type: string
+                example: refresh_token=eyJhbGc...; HttpOnly; Secure; SameSite=Strict; Max-Age=604800
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Invalid email or password
+        '429':
+          description: Rate limit exceeded (max 5 requests per minute)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Too many login attempts. Please try again later.
+
+  /api/auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Logout current user
+      description: Invalidates refresh token by removing cookie
+      operationId: logoutUser
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Successfully logged out
+          headers:
+            Set-Cookie:
+              description: Clears refresh token cookie
+              schema:
+                type: string
+                example: refresh_token=; Max-Age=0
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh access token
+      description: |
+        Obtains a new access token using refresh token from httpOnly cookie.
+        Issues new refresh token (rotation) for improved security.
+      operationId: refreshToken
+      parameters:
+        - in: cookie
+          name: refresh_token
+          required: true
+          schema:
+            type: string
+          description: Refresh token from httpOnly cookie
+      responses:
+        '200':
+          description: New access token issued
+          headers:
+            Set-Cookie:
+              description: New refresh token (token rotation)
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                    description: New JWT access token (15min expiry)
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  token_type:
+                    type: string
+                    example: bearer
+        '401':
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user profile
+      description: Returns authenticated user's profile information
+      operationId: getCurrentUser
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Not authenticated or token expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/sessions:
+    get:
+      tags:
+        - Sessions
+      summary: List user's practice sessions
+      description: |
+        Retrieves paginated list of practice sessions for authenticated user.
+        Sessions are ordered by date (most recent first).
+        Supports filtering by practice type and date range.
+      operationId: listSessions
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          description: Number of sessions per page (default 20, max 100)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          description: Number of sessions to skip (for pagination)
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: practice_type
+          in: query
+          description: Filter by practice type
+          required: false
+          schema:
+            type: string
+            enum: [chords, scales, course, songs]
+        - name: date_from
+          in: query
+          description: Filter sessions from this date (ISO 8601)
+          required: false
+          schema:
+            type: string
+            format: date
+            example: "2026-01-01"
+        - name: date_to
+          in: query
+          description: Filter sessions until this date (ISO 8601)
+          required: false
+          schema:
+            type: string
+            format: date
+            example: "2026-02-06"
+      responses:
+        '200':
+          description: List of practice sessions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SessionResponse'
+                  total:
+                    type: integer
+                    description: Total number of sessions matching filters
+                    example: 150
+                  limit:
+                    type: integer
+                    example: 20
+                  offset:
+                    type: integer
+                    example: 0
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - Sessions
+      summary: Create new practice session
+      description: |
+        Logs a new practice session for the current date.
+        Date is automatically set to current date (no backdating in MVP).
+        Tempo is required for "chords" and "scales", not allowed for "course" and "songs".
+      operationId: createSession
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionCreate'
+            examples:
+              scalesSession:
+                summary: Scales practice with tempo
+                value:
+                  practice_type: scales
+                  tempo: 105
+                  notes: Worked on C major scale
+              songsSession:
+                summary: Songs practice without tempo
+                value:
+                  practice_type: songs
+                  notes: Practiced Für Elise
+      responses:
+        '201':
+          description: Session successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                missingTempo:
+                  summary: Tempo required for chords/scales
+                  value:
+                    detail: Tempo is required for chords
+                invalidTempo:
+                  summary: Tempo out of range
+                  value:
+                    detail: Tempo must be between 90 and 120
+                tempoNotAllowed:
+                  summary: Tempo provided for course/songs
+                  value:
+                    detail: Tempo should not be provided for songs
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
+  /api/sessions/{sessionId}:
+    get:
+      tags:
+        - Sessions
+      summary: Get single practice session
+      description: Retrieves details of a specific practice session by ID
+      operationId: getSession
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          description: UUID of the practice session
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Session details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Not authorized to access this session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Not authorized to access this session
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: Session not found
+
+    put:
+      tags:
+        - Sessions
+      summary: Update practice session
+      description: |
+        Updates session notes. Date, practice type, and tempo are immutable in MVP.
+      operationId: updateSession
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionUpdate'
+      responses:
+        '200':
+          description: Session successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Not authorized to update this session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
+    delete:
+      tags:
+        - Sessions
+      summary: Delete practice session
+      description: Permanently deletes a practice session
+      operationId: deleteSession
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Session successfully deleted
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Not authorized to delete this session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/sessions/stats:
+    get:
+      tags:
+        - Sessions
+      summary: Get practice statistics
+      description: |
+        Retrieves aggregated statistics about user's practice sessions.
+        Includes total sessions, breakdown by type, average tempo, and recent activity patterns.
+      operationId: getStatistics
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: period
+          in: query
+          description: Time period for statistics
+          required: false
+          schema:
+            type: string
+            enum: [week, month, year, all]
+            default: month
+      responses:
+        '200':
+          description: Practice statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Statistics'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT access token obtained from `/auth/login` or `/auth/register`.
+        Token expires after 15 minutes. Use `/auth/refresh` to obtain new token.
+
+  schemas:
+    UserRegister:
+      type: object
+      required:
+        - email
+        - password
+        - name
+      properties:
+        email:
+          type: string
+          format: email
+          example: john.pianist@example.com
+          description: User's email address (unique, used for login)
+        password:
+          type: string
+          minLength: 8
+          format: password
+          example: SecurePass123
+          description: Plain text password (hashed with bcrypt before storage)
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: John Pianist
+          description: User's display name
+
+    UserLogin:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: john.pianist@example.com
+        password:
+          type: string
+          format: password
+          example: SecurePass123
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+          description: User unique identifier
+        email:
+          type: string
+          format: email
+          example: john.pianist@example.com
+        name:
+          type: string
+          example: John Pianist
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-02-06T10:00:00Z"
+          description: Account creation timestamp (ISO 8601)
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-02-06T10:00:00Z"
+          description: Last profile update timestamp (ISO 8601)
+
+    AuthResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+          description: JWT access token (expires in 15 minutes)
+        token_type:
+          type: string
+          example: bearer
+          description: Token type (always "bearer")
+        user:
+          $ref: '#/components/schemas/UserResponse'
+
+    SessionCreate:
+      type: object
+      required:
+        - practice_type
+      properties:
+        practice_type:
+          type: string
+          enum: [chords, scales, course, songs]
+          example: scales
+          description: Type of practice activity
+        tempo:
+          type: integer
+          minimum: 90
+          maximum: 120
+          example: 105
+          description: |
+            Practice tempo in BPM (beats per minute).
+            Required for "chords" and "scales", must be null for "course" and "songs".
+            Must be an integer (no decimals).
+        notes:
+          type: string
+          maxLength: 500
+          example: Worked on C major scale, still struggling with left hand
+          description: Optional user notes about the session
+
+    SessionUpdate:
+      type: object
+      properties:
+        notes:
+          type: string
+          maxLength: 500
+          nullable: true
+          example: Updated notes about the session
+          description: |
+            Session notes (only field that can be updated in MVP).
+            Date, practice_type, and tempo are immutable.
+
+    SessionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 660e8400-e29b-41d4-a716-446655440001
+          description: Session unique identifier
+        user_id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+          description: ID of user who owns this session
+        date:
+          type: string
+          format: date-time
+          example: "2026-02-06T00:00:00Z"
+          description: Date of the practice session (current date, no backdating)
+        practice_type:
+          type: string
+          enum: [chords, scales, course, songs]
+          example: scales
+        tempo:
+          type: integer
+          minimum: 90
+          maximum: 120
+          nullable: true
+          example: 105
+          description: Tempo in BPM (only for chords/scales)
+        notes:
+          type: string
+          maxLength: 500
+          nullable: true
+          example: Worked on C major scale
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-02-06T14:30:00Z"
+          description: Record creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-02-06T14:30:00Z"
+          description: Last update timestamp
+
+    Statistics:
+      type: object
+      properties:
+        total_sessions:
+          type: integer
+          example: 150
+          description: Total number of practice sessions in period
+        by_type:
+          type: object
+          description: Session count and details by practice type
+          properties:
+            chords:
+              $ref: '#/components/schemas/TypeStatistics'
+            scales:
+              $ref: '#/components/schemas/TypeStatistics'
+            course:
+              $ref: '#/components/schemas/TypeStatistics'
+            songs:
+              $ref: '#/components/schemas/TypeStatistics'
+        average_tempo:
+          type: object
+          description: Average tempo for types that use tempo
+          properties:
+            chords:
+              type: number
+              format: float
+              example: 98.5
+              nullable: true
+            scales:
+              type: number
+              format: float
+              example: 105.3
+              nullable: true
+        recent_activity:
+          type: object
+          description: Sessions per day in recent period
+          additionalProperties:
+            type: integer
+          example:
+            "2026-02-06": 2
+            "2026-02-05": 1
+            "2026-02-04": 3
+        period:
+          type: string
+          enum: [week, month, year, all]
+          example: month
+          description: Time period for these statistics
+
+    TypeStatistics:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 45
+          description: Number of sessions of this type
+        percentage:
+          type: number
+          format: float
+          example: 30.0
+          description: Percentage of total sessions
+
+    Error:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: string
+          example: Invalid email or password
+          description: Human-readable error message
+
+    ValidationError:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: array
+          items:
+            type: object
+            properties:
+              loc:
+                type: array
+                items:
+                  type: string
+                example: [body, tempo]
+                description: Location of validation error
+              msg:
+                type: string
+                example: Tempo must be between 90 and 120
+                description: Error message
+              type:
+                type: string
+                example: value_error
+                description: Error type
