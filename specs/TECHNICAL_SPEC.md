@@ -15,30 +15,27 @@
 ┌─────────────────────────────────────────────┐
 │            Client (Browser)                 │
 │  ┌─────────────────────────────────────┐   │
-│  │   React SPA + State Management      │   │
+│  │  TypeScript SPA + Vanilla JS        │   │
+│  │  (HTML/CSS/TS, no framework)        │   │
 │  └─────────────┬───────────────────────┘   │
 └────────────────┼───────────────────────────┘
                  │ HTTPS/REST
 ┌────────────────┼───────────────────────────┐
 │                ▼                            │
 │  ┌──────────────────────────────────┐      │
-│  │      API Gateway/Router          │      │
-│  └──────────┬───────────────────────┘      │
-│             │                               │
-│  ┌──────────┼───────────────────────┐      │
-│  │  ┌───────▼────────┐  ┌─────────┐ │      │
-│  │  │ Auth Service   │  │ Session │ │      │
-│  │  │                │  │ Service │ │      │
-│  │  └───────┬────────┘  └────┬────┘ │      │
-│  │          │                 │      │      │
-│  │          └────────┬────────┘      │      │
-│  │                   ▼               │      │
-│  │          ┌─────────────────┐      │      │
-│  │          │   Database      │      │      │
-│  │          │  (PostgreSQL)   │      │      │
-│  │          └─────────────────┘      │      │
-│  └────────────────────────────────────┘     │
-│              Backend Server                 │
+│  │  Azure AppService (Python)       │      │
+│  │  ┌────────────────────────────┐ │      │
+│  │  │      FastAPI               │ │      │
+│  │  │  ┌──────────┬────────────┐ │ │      │
+│  │  │  │Auth Svc  │Session Svc │ │ │      │
+│  │  │  └──────────┴────────────┘ │ │      │
+│  │  └────────────┬───────────────┘ │      │
+│  │               ▼                  │      │
+│  │    ┌──────────────────────┐     │      │
+│  │    │  Azure CosmosDB      │     │      │
+│  │    │  (NoSQL Document DB) │     │      │
+│  │    └──────────────────────┘     │      │
+│  └────────────────────────────────┘       │
 └─────────────────────────────────────────────┘
 ```
 
@@ -47,112 +44,149 @@
 ## Technology Stack
 
 ### Frontend
-- **Framework**: React 18+ with TypeScript
-- **State Management**: React Context API + React Query (server state)
-- **Routing**: React Router v6
-- **Forms**: React Hook Form + Zod validation
-- **UI Components**: Custom components with design system
-- **Charts**: Chart.js or Recharts (lightweight)
-- **Styling**: CSS Modules or Styled Components
-- **Build Tool**: Vite
-- **Testing**: Vitest + React Testing Library + Playwright (E2E)
+- **Language**: TypeScript
+- **Architecture**: Vanilla TypeScript SPA (no framework)
+- **Build Tool**: Webpack or Parcel (minify, bundle)
+- **HTTP Client**: Fetch API (with types)
+- **Validation**: Zod (client-side)
+- **Charts**: Chart.js (lightweight, no React needed)
+- **Styling**: Plain CSS (mobile-first responsive design)
+- **Testing**: Jest + Playwright (E2E)
+- **Package Manager**: npm/pnpm
 
 ### Backend
-- **Runtime**: Node.js 18+ LTS
-- **Framework**: Express.js or Fastify
-- **Language**: TypeScript
+- **Language**: Python 3.11+
+- **Framework**: FastAPI (async, modern, fast)
 - **Authentication**: JWT (access + refresh tokens)
 - **Password Hashing**: bcrypt
-- **Validation**: Zod (shared schemas with frontend)
-- **ORM**: Prisma or Drizzle
-- **Testing**: Vitest + Supertest
+- **Validation**: Pydantic (schemas)
+- **Database Client**: azure-cosmos-python (CosmosDB SDK)
+- **Testing**: pytest + pytest-asyncio
+- **ASGI Server**: Uvicorn
+- **Dependencies**: APScheduler (background jobs), python-jose (JWT)
 
 ### Database
-- **Primary**: PostgreSQL 15+
-- **Caching** (future): Redis for session storage
-- **Migrations**: Prisma Migrate or custom SQL migrations
+- **Primary**: Azure CosmosDB (NoSQL, document-based)
+- **API**: SQL API (SQL queries on JSON documents)
+- **Consistency**: Session-level (default)
+- **Throughput**: RU-based billing, auto-scale capable
+- **Backup**: Automatic daily backups by Azure
 
 ### Infrastructure
-- **Hosting**: TBD (Vercel, Netlify, Railway, or similar)
+- **Hosting**: Azure AppService (Linux, Docker container)
+- **Database**: Azure CosmosDB
+- **Infrastructure as Code**: Bicep (Azure Resource Manager templates)
 - **CI/CD**: GitHub Actions
-- **Monitoring**: Sentry (errors) + Analytics tool (TBD)
+- **Monitoring**: Azure Monitor + Application Insights
+- **Container Registry**: Azure Container Registry (ACR)
 
 ---
 
 ## Data Model
 
-### Core Entities
+### Core Entities (Pydantic Models)
 
-```typescript
-// User
-interface User {
-  id: string;              // UUID
-  email: string;           // Unique
-  passwordHash: string;
-  name: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
+```python
+from pydantic import BaseModel, Field, EmailStr
+from typing import Optional, Literal
+from datetime import datetime
 
-// Practice Session
-interface PracticeSession {
-  id: string;              // UUID
-  userId: string;          // FK to User
-  date: Date;              // Practice date/time
-  durationMinutes: number; // Required
-  practiceType: PracticeType; // Enum
-  tempo?: number;          // Required if type is CHORDS or SCALES
-  notes?: string;          // Optional
-  createdAt: Date;
-  updatedAt: Date;
-}
+class User(BaseModel):
+    id: str = Field(..., alias="_id")
+    email: EmailStr
+    password_hash: str
+    name: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    partition_key: str = "users"  # CosmosDB partition key
 
-// Practice Type Enum
-enum PracticeType {
-  CHORDS = 'chords',
-  SCALES = 'scales',
-  COURSE = 'course',
-  SONGS = 'songs'
+class PracticeSession(BaseModel):
+    id: str = Field(..., alias="_id")
+    user_id: str
+    date: datetime
+    duration_minutes: int  # min: 1
+    practice_type: Literal["chords", "scales", "course", "songs"]
+    tempo: Optional[int] = None  # 90-120, required for chords/scales
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    partition_key: str = None  # Will be set to user_id
+```
+
+### CosmosDB Document Schema
+
+CosmosDB uses JSON documents. Two containers required:
+
+**Container 1: users**
+- Partition key: `/partition_key` (string "users")
+- TTL: None (permanent)
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "_id": "550e8400-e29b-41d4-a716-446655440000",
+  "email": "user@example.com",
+  "password_hash": "$2b$12$...",
+  "name": "John Pianist",
+  "created_at": "2026-02-06T12:00:00",
+  "updated_at": "2026-02-06T12:00:00",
+  "partition_key": "users",
+  "_etag": "\"00000000-0000-0000-0000-000000000000\"",
+  "_ts": 1707219600
 }
 ```
 
-### Database Schema (PostgreSQL)
+**Container 2: practice_sessions**
+- Partition key: `/partition_key` (user_id for query efficiency)
+- TTL: None
+
+```json
+{
+  "id": "660e8400-e29b-41d4-a716-446655440001",
+  "_id": "660e8400-e29b-41d4-a716-446655440001",
+  "user_id": "550e8400-e29b-41d4-a716-446655440000",
+  "date": "2026-02-06T14:30:00",
+  "duration_minutes": 45,
+  "practice_type": "scales",
+  "tempo": 108,
+  "notes": "Worked on C major, struggling with left hand",
+  "created_at": "2026-02-06T14:31:00",
+  "updated_at": "2026-02-06T14:31:00",
+  "partition_key": "550e8400-e29b-41d4-a716-446655440000",
+  "_etag": "\"00000000-0000-0000-0000-000000000001\"",
+  "_ts": 1707220260
+}
+```
+
+### CosmosDB Queries
 
 ```sql
-CREATE TABLE users (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email VARCHAR(255) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  name VARCHAR(255) NOT NULL,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
+-- Get user by email
+SELECT * FROM users u WHERE u.email = @email AND u.partition_key = "users"
 
-CREATE INDEX idx_users_email ON users(email);
+-- Get sessions for user (paginated)
+SELECT * FROM practice_sessions s 
+WHERE s.user_id = @userId AND s.partition_key = @userId
+ORDER BY s.date DESC
+OFFSET @offset LIMIT @limit
 
-CREATE TYPE practice_type AS ENUM ('chords', 'scales', 'course', 'songs');
+-- Get sessions by type (user filtered)
+SELECT * FROM practice_sessions s 
+WHERE s.user_id = @userId 
+  AND s.partition_key = @userId 
+  AND s.practice_type = @type
+ORDER BY s.date DESC
 
-CREATE TABLE practice_sessions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  date TIMESTAMP NOT NULL DEFAULT NOW(),
-  duration_minutes INTEGER NOT NULL CHECK (duration_minutes > 0),
-  practice_type practice_type NOT NULL,
-  tempo INTEGER CHECK (tempo IS NULL OR (tempo >= 90 AND tempo <= 120)),
-  notes TEXT,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW(),
-  
-  -- Constraint: tempo required for chords/scales
-  CONSTRAINT tempo_required_for_tempo_types 
-    CHECK (
-      (practice_type IN ('chords', 'scales') AND tempo IS NOT NULL) OR
-      (practice_type NOT IN ('chords', 'scales'))
-    )
-);
-
-CREATE INDEX idx_sessions_user_date ON practice_sessions(user_id, date DESC);
-CREATE INDEX idx_sessions_user_type ON practice_sessions(user_id, practice_type);
+-- Aggregate stats (group by type)
+SELECT 
+  s.practice_type,
+  COUNT(1) as count,
+  SUM(s.duration_minutes) as total_minutes
+FROM practice_sessions s
+WHERE s.user_id = @userId 
+  AND s.partition_key = @userId 
+  AND s.date >= @startDate
+GROUP BY s.practice_type
 ```
 
 ---
@@ -275,121 +309,229 @@ Authorization: Bearer <token>
 - Service Worker for offline history viewing
 
 ### Backend
-- Database connection pooling
-- Index on user_id + date for fast queries
-- Pagination (limit/offset or cursor-based)
-- Response caching for statistics (5min TTL)
+- CosmosDB partition key optimization (partition by user_id)
+- Composite indexes for common query patterns
+- Pagination (limit/offset)
 - Gzip compression on responses
+- Connection pooling via CosmosDB SDK
 
 ### Monitoring
 - Core Web Vitals tracking (RUM)
-- API response time monitoring
-- Database query performance logging (slow query log)
-- Error tracking with stack traces (Sentry)
+- API response time monitoring via Azure Application Insights
+- CosmosDB request metrics and RU consumption
+- Error tracking with stack traces (Application Insights)
 
 ---
 
 ## Testing Strategy
 
 ### Unit Tests (70%)
-- Validation schemas
-- Utility functions (date formatting, tempo calculations)
-- React hooks (custom hooks)
+- Pydantic validation schemas
+- Utility functions (date formatting, tempo calculations, stats)
 - API route handlers (business logic)
+- CosmosDB query builders
 
 ### Integration Tests (20%)
 - API endpoint flows (auth → create session → fetch sessions)
-- Database interactions (CRUD operations)
-- Form submission flows
+- CosmosDB CRUD operations
+- Frontend-backend integration (API calls)
 
 ### E2E Tests (10%)
-- User registration → login → create session → view history → logout
+- Complete user journey: register → login → create session → view history → logout
 - Session filtering and statistics viewing
 - Error states (invalid inputs, network failures)
+- Performance benchmarks
 
 ### Target Coverage
 - Overall: 80%+
 - Critical paths: 100% (auth, session CRUD)
+- Backend (pytest): All endpoints with fixture-based CosmosDB testing
 
 ---
 
 ## Deployment
 
 ### Environments
-- **Development**: Local (Docker Compose for DB)
-- **Staging**: Preview deployments (per PR)
-- **Production**: Main branch auto-deploy
+- **Development**: Local (Docker with CosmosDB emulator)
+- **Staging**: Azure AppService slot (pre-production)
+- **Production**: Azure AppService main slot
 
-### CI/CD Pipeline
+### Infrastructure as Code (Bicep)
+
+Deploy via GitHub Actions:
+```bicep
+// main.bicep
+param location string = 'eastus'
+param environment string = 'prod'
+
+resource appService 'Microsoft.Web/sites@2021-02-01' = {
+  name: 'pianotracker-${environment}'
+  location: location
+  properties: {
+    serverFarmId: appServicePlan.id
+    httpsOnly: true
+    siteConfig: {
+      alwaysOn: true
+      linuxFxVersion: 'PYTHON|3.11'
+      appSettings: [
+        { name: 'COSMOSDB_ENDPOINT', value: cosmosAccount.properties.documentEndpoint }
+        { name: 'COSMOSDB_KEY', value: cosmosAccount.listKeys().primaryMasterKey }
+      ]
+    }
+  }
+}
+
+resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2021-04-15' = {
+  name: 'pianotracker-cosmos-${environment}'
+  location: location
+  properties: {
+    databaseAccountOfferType: 'Standard'
+    locations: [{ locationName: location, failoverPriority: 0 }]
+  }
+}
+```
+
+### CI/CD Pipeline (GitHub Actions)
+
 ```yaml
-1. Trigger: Push to branch
-2. Lint & Type Check (TypeScript)
-3. Run Unit Tests
-4. Run Integration Tests
-5. Build Frontend (Vite)
-6. Build Backend (tsc)
-7. Run E2E Tests (Playwright)
-8. Deploy to Staging (if PR)
-9. Deploy to Production (if main branch)
-10. Smoke Tests on Production
+name: Deploy
+on:
+  push:
+    branches: [main, develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Frontend Tests
+        run: npm test --prefix frontend
+      - name: Backend Tests
+        run: pytest backend/
+      - name: Frontend Build
+        run: npm run build --prefix frontend
+      - name: Backend Build
+        run: pip install -r backend/requirements.txt
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v3
+      - name: Deploy Bicep
+        run: |
+          az deployment group create \
+            --resource-group pianotracker \
+            --template-file main.bicep \
+            --parameters environment=prod
+      - name: Deploy Frontend
+        run: az webapp deployment source config-zip --resource-group pianotracker --name pianotracker-prod --src-path frontend.zip
+      - name: Deploy Backend
+        run: |
+          az appservice plan create --resource-group pianotracker --name pianotracker-plan --sku B2 --is-linux
+          az webapp deployment source config-zip --resource-group pianotracker --name pianotracker-api-prod --src-path backend.zip
+      - name: Smoke Tests
+        run: pytest tests/e2e/smoke_tests.py
 ```
 
 ### Rollback Strategy
-- Keep last 3 deployments ready
-- Instant rollback via hosting provider
-- Database migrations backward-compatible
+- Azure AppService slot swaps (instant rollback)
+- Keep previous deployment in staging slot
+- CosmosDB has automatic daily backups (point-in-time restore available)
 
 ---
 
 ## Future Technical Enhancements
 
 ### Phase 2: Analytics
-- Time-series database for efficient stat queries (TimescaleDB)
-- Background jobs for stat aggregation (BullMQ)
+- CosmosDB analytical queries with dedicated analytical store
+- Background jobs for stat pre-aggregation (APScheduler)
+- Time-windowed statistics materialized views
 
 ### Phase 3: Intelligence
-- ML model for recommendations (Python microservice or Edge Function)
-- Feature flags for gradual rollout (LaunchDarkly or custom)
+- ML model for recommendations (Python service within backend)
+- Feature flags (Feature Management via Azure)
+- User segment analysis
 
 ### Phase 4: Visual Learning
-- SVG-based piano keyboard component
-- Chord data library (JSON or DB table)
-- WebGL for advanced visualizations (optional)
+- SVG-based piano keyboard component (frontend TypeScript)
+- Chord data library (CosmosDB collection)
+- Advanced visualizations (Canvas/SVG)
+
+---
+
+## Configuration & Secrets
+
+### Environment Variables
+
+```bash
+# Backend (.env)
+FASTAPI_ENV=production
+DEBUG=false
+SECRET_KEY=<random-256-bit-key>
+JWT_ALGORITHM=HS256
+JWT_EXPIRATION_MINUTES=15
+JWT_REFRESH_EXPIRATION_DAYS=7
+
+COSMOSDB_ENDPOINT=https://pianotracker-cosmos.documents.azure.com:443/
+COSMOSDB_KEY=<primary-key>
+COSMOSDB_DATABASE=pianotracker
+
+CORS_ORIGINS=https://pianotracker.azurewebsites.net
+LOG_LEVEL=INFO
+```
+
+### Frontend Configuration
+```typescript
+// config.ts
+export const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://api.pianotracker.azurewebsites.net';
+export const JWT_STORAGE_KEY = 'pianotracker_token';
+export const JWT_REFRESH_KEY = 'pianotracker_refresh';
+```
 
 ---
 
 ## Open Questions
 
-- [ ] Preferred hosting provider (cost vs. features)?
-- [ ] Analytics tool (privacy-focused: Plausible, Fathom)?
-- [ ] Email service for password reset (SendGrid, AWS SES)?
+- [ ] CosmosDB throughput: Fixed RU/s or autoscale?
+- [ ] Email service for password reset (SendGrid, Azure Communication Services)?
 - [ ] Internationalization needed (i18n)?
 - [ ] Dark mode support?
+- [ ] Custom domain (e.g., pianotracker.com) or Azure subdomain?
 
 ---
 
 ## Dependencies & Risks
 
-### Dependencies
-- PostgreSQL database availability
-- Hosting provider uptime SLA
-- Third-party libraries (React, Express)
+### Critical Dependencies
+- Azure AppService availability (99.95% SLA)
+- Azure CosmosDB availability (99.99% SLA)
+- Third-party libraries (FastAPI, Pydantic, Chart.js)
 
 ### Risks & Mitigation
-- **Risk**: Database schema changes break existing data  
-  **Mitigation**: Comprehensive migration tests, staging validation
+
+- **Risk**: CosmosDB RU costs exceed budget  
+  **Mitigation**: Autoscale with max RU caps, query optimization, dedicated analytical store
   
-- **Risk**: Frontend bundle size exceeds targets  
-  **Mitigation**: Bundle analysis in CI, lazy loading, tree-shaking
+- **Risk**: Frontend TypeScript type errors in production  
+  **Mitigation**: Strict TypeScript config, ESLint, pre-deployment build checks
+  
+- **Risk**: Python backend cold starts on AppService  
+  **Mitigation**: Always-On setting, keep-alive pings, Premium tier if needed
+  
+- **Risk**: CosmosDB partition hotspots (user-based queries)  
+  **Mitigation**: Distribute queries, consider synthetic partition key if needed
   
 - **Risk**: User data loss  
-  **Mitigation**: Automated daily backups, point-in-time recovery
+  **Mitigation**: CosmosDB automatic daily backups + point-in-time restore (30 days)
 
 ---
 
 **Next Steps:**
-1. Set up project scaffolding (Vite + Express)
-2. Database schema creation and seed data
-3. Auth endpoints implementation
-4. Session CRUD implementation
-5. Frontend session logging UI
+1. Create Bicep infrastructure templates
+2. Set up local CosmosDB emulator for development
+3. Scaffold FastAPI backend with Pydantic models
+4. Create TypeScript frontend build pipeline
+5. Configure GitHub Actions CI/CD
+6. Deploy to Azure staging environment

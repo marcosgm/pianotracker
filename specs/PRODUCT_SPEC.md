@@ -196,9 +196,11 @@ A simple, focused web application that helps pianists track their practice sessi
 
 See [TECHNICAL_SPEC.md](TECHNICAL_SPEC.md) for implementation details.
 
-**Key Constraints:**
-- Web-based (browser access)
-- Offline-capable (view history without connection)
+**Key Stack:**
+- Backend: Python + FastAPI
+- Frontend: Pure TypeScript with CSS
+- Database: Azure CosmosDB (NoSQL)
+- Hosting: Azure AppService + Bicep IaC
 - Performance targets per Constitution (LCP < 2.5s)
 - 80%+ test coverage
 
