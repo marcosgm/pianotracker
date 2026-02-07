@@ -2,6 +2,12 @@
 Pytest configuration and fixtures for Piano Session Tracker.
 """
 
+import sys
+from pathlib import Path
+
+# Add project root to Python path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 import pytest
 from src import create_app, db
 from src.models import User, PracticeSession, PracticeRoutine
@@ -44,16 +50,16 @@ def auth(client):
             )
 
         @staticmethod
-        def login(email="test@example.com", password="password123"):
+        def login(email="test@example.com", password="password123", follow=True):
             return client.post(
                 "/login",
                 data={"email": email, "password": password},
-                follow_redirects=True
+                follow_redirects=follow
             )
 
         @staticmethod
         def logout():
-            return client.get("/logout")
+            return client.get("/logout", follow_redirects=True)
 
     return Auth()
 

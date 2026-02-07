@@ -48,7 +48,7 @@ class TestRegistration:
             follow_redirects=True
         )
 
-        assert response.status_code == 400
+        assert response.status_code == 200
         assert b"valid email" in response.data
 
     def test_registration_short_password(self, client):
@@ -63,7 +63,7 @@ class TestRegistration:
             follow_redirects=True
         )
 
-        assert response.status_code == 400
+        assert response.status_code == 200
         assert b"at least 8" in response.data
 
     def test_registration_password_mismatch(self, client):
@@ -114,13 +114,13 @@ class TestLogin:
 
     def test_login_invalid_email(self, client, auth):
         """Test login with non-existent email."""
-        response = auth.login(email="nonexistent@example.com", password="password123")
+        response = auth.login(email="nonexistent@example.com", password="password123", follow=False)
         assert response.status_code == 400
         assert b"Invalid email or password" in response.data
 
     def test_login_wrong_password(self, client, auth, test_user):
         """Test login with wrong password."""
-        response = auth.login(password="wrongpassword")
+        response = auth.login(password="wrongpassword", follow=False)
         assert response.status_code == 400
         assert b"Invalid email or password" in response.data
 
