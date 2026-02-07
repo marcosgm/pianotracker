@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Register - Piano Session Tracker{% endblock %}
+
+{% block content %}
+<div class="section" style="max-width: 400px; margin: 2rem auto;">
+    <h1 class="page-title" style="text-align: center;">Create Account</h1>
+    <p style="text-align: center; color: #7f8c8d; margin-bottom: 2rem;">Join Piano Session Tracker today</p>
+
+    <form method="POST" novalidate>
+        {{ form.hidden_tag() }}
+
+        <div class="form-group">
+            {{ form.email.label }}
+            {% if form.email.errors %}
+                {{ form.email(class="form-control is-invalid") }}
+                <div class="form-error">
+                    {% for error in form.email.errors %}
+                        <div>{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                {{ form.email() }}
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            {{ form.password.label }}
+            {% if form.password.errors %}
+                {{ form.password(class="form-control is-invalid") }}
+                <div class="form-error">
+                    {% for error in form.password.errors %}
+                        <div>{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                {{ form.password() }}
+            {% endif %}
+            <small style="color: #7f8c8d;">Minimum 8 characters</small>
+        </div>
+
+        <div class="form-group">
+            {{ form.password_confirm.label }}
+            {% if form.password_confirm.errors %}
+                {{ form.password_confirm(class="form-control is-invalid") }}
+                <div class="form-error">
+                    {% for error in form.password_confirm.errors %}
+                        <div>{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                {{ form.password_confirm() }}
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            {{ form.submit() }}
+        </div>
+    </form>
+
+    <p style="text-align: center; margin-top: 1.5rem;">
+        Already have an account? <a href="/login">Log in here</a>
+    </p>
+</div>
+{% endblock %}

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Piano Session Tracker{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <nav class="navbar">
+                <div class="navbar-brand">
+                    <a href="/" class="logo">🎹 Piano Tracker</a>
+                </div>
+                <ul class="navbar-menu">
+                    {% if session.get('user_id') %}
+                        <li><a href="/dashboard">Dashboard</a></li>
+                        <li><a href="/session/history">History</a></li>
+                        <li><a href="/logout">Logout</a></li>
+                    {% else %}
+                        <li><a href="/register">Register</a></li>
+                        <li><a href="/login">Login</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </header>
+
+        <main>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">
+                            {{ message }}
+                            <button class="alert-close" onclick="this.parentElement.style.display='none';">&times;</button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </main>
+
+        <footer>
+            <p>&copy; 2026 Piano Session Tracker - Simplicity First</p>
+        </footer>
+    </div>
+</body>
+</html>

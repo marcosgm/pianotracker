@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Piano Session Tracker{% endblock %}
+
+{% block content %}
+<div class="section">
+    <h1 class="page-title">Welcome, {{ user.email }}!</h1>
+    <p class="page-subtitle">Your piano practice tracking dashboard</p>
+
+    <div class="grid grid-3">
+        <div class="stat-box">
+            <div class="stat-value">{{ total_sessions }}</div>
+            <div class="stat-label">Total Sessions</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-value">{{ most_frequent_type or "—" }}</div>
+            <div class="stat-label">Most Frequent Type</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-value">🎯</div>
+            <div class="stat-label">Keep Practicing!</div>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 2rem;">
+        <a href="/session/new" class="btn btn-primary" style="padding: 1.5rem; text-align: center; font-size: 1.1rem;">
+            ➕ New Session
+        </a>
+        <a href="/session/history" class="btn btn-secondary" style="padding: 1.5rem; text-align: center; font-size: 1.1rem;">
+            📊 View History
+        </a>
+    </div>
+
+    <div class="card" style="margin-top: 2rem;">
+        <h2 class="card-title">Quick Tips</h2>
+        <ul style="margin-left: 1.5rem;">
+            <li>Log a session right after practicing to remember details accurately</li>
+            <li>Add notes about what you practiced (e.g., "C Major scales, 1-octave") for future reference</li>
+            <li>The app remembers your practice routines and offers them as quick-select options</li>
+            <li>View your history anytime to track your practice patterns and progress</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

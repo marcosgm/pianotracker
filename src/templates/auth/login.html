@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Piano Session Tracker{% endblock %}
+
+{% block content %}
+<div class="section" style="max-width: 400px; margin: 2rem auto;">
+    <h1 class="page-title" style="text-align: center;">Login</h1>
+    <p style="text-align: center; color: #7f8c8d; margin-bottom: 2rem;">Welcome back to Piano Session Tracker</p>
+
+    <form method="POST" novalidate>
+        {{ form.hidden_tag() }}
+
+        <div class="form-group">
+            {{ form.email.label }}
+            {% if form.email.errors %}
+                {{ form.email(class="form-control is-invalid") }}
+                <div class="form-error">
+                    {% for error in form.email.errors %}
+                        <div>{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                {{ form.email() }}
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            {{ form.password.label }}
+            {% if form.password.errors %}
+                {{ form.password(class="form-control is-invalid") }}
+                <div class="form-error">
+                    {% for error in form.password.errors %}
+                        <div>{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                {{ form.password() }}
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            {{ form.submit() }}
+        </div>
+    </form>
+
+    <p style="text-align: center; margin-top: 1.5rem;">
+        Don't have an account? <a href="/register">Register here</a>
+    </p>
+</div>
+{% endblock %}

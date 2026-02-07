@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Piano Session Tracker{% endblock %}
+
+{% block content %}
+<div class="section">
+    <h1 class="page-title">🎹 Piano Session Tracker</h1>
+    <p class="page-subtitle">Track your piano practice sessions and remember your routines</p>
+
+    <div class="grid grid-2">
+        <div class="card">
+            <h2 class="card-title">Why Track Your Practice?</h2>
+            <p><strong>Build Consistency:</strong> See how often you practice and identify patterns.</p>
+            <p><strong>Remember Routines:</strong> The app remembers your favorite practice combinations and offers them as quick-select options.</p>
+            <p><strong>Track Progress:</strong> View statistics about which practice types you focus on most.</p>
+            <p><strong>Simple & Secure:</strong> Your practice history is private and securely stored.</p>
+        </div>
+
+        <div class="card">
+            <h2 class="card-title">Get Started</h2>
+            <p>Create a free account to start tracking your piano practice sessions today.</p>
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <a href="/register" class="btn btn-primary" style="flex: 1;">Create Account</a>
+                <a href="/login" class="btn btn-secondary" style="flex: 1;">Log In</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top: 2rem;">
+        <h2 class="card-title">How It Works</h2>
+        <ol style="margin-left: 1.5rem;">
+            <li><strong>Register:</strong> Create an account with your email and password</li>
+            <li><strong>Log Session:</strong> After a practice session, select the type (Chords, Scales, Course, Songs), add optional tempo (for Chords/Scales), and document what you played</li>
+            <li><strong>Automatic Routines:</strong> The app remembers your practice combinations and offers them next time for quick selection</li>
+            <li><strong>Track Progress:</strong> View your complete session history with statistics and filter by practice type</li>
+        </ol>
+    </div>
+</div>
+{% endblock %}

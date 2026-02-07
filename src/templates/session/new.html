@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}Log Practice Session - Piano Session Tracker{% endblock %}
+
+{% block content %}
+<div class="section">
+    <h1 class="page-title">Log a Practice Session</h1>
+    
+    {% if routines %}
+    <div class="card" style="background-color: #f0f8ff; border-left: 4px solid #3498db;">
+        <h2 class="card-title">🎯 Quick Select: Past Routines</h2>
+        <p style="margin-bottom: 1rem; color: #7f8c8d;">Click a routine below to quickly pre-fill the form with that practice combination:</p>
+        
+        <div class="grid grid-2">
+            {% for routine in routines %}
+            <div class="routine-item" style="padding: 1rem; background: white; border: 1px solid #bdc3c7; border-radius: 4px; cursor: pointer; transition: all 0.3s; margin-bottom: 0.5rem;" onclick="selectRoutine({{ routine.id }}, '{{ routine.practice_type }}', {{ routine.tempo or 'null' }}, {{ routine.comments|tojson }})">
+                <div style="font-weight: 600; color: #2c3e50;">{{ routine.practice_type }}</div>
+                {% if routine.tempo %}
+                <div style="color: #3498db;">@ {{ routine.tempo }} BPM</div>
+                {% endif %}
+                {% if routine.comments %}
+                <div style="font-size: 0.9rem; color: #7f8c8d;">{{ routine.comments[:50] }}{% if routine.comments|length > 50 %}...{% endif %}</div>
+                {% endif %}
+                <div style="font-size: 0.85rem; color: #95a5a6; margin-top: 0.5rem;">Last used: {% if routine.last_used_at %}{{ routine.last_used_at.strftime('%b %d') }}{% else %}Today{% endif %}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <h2 class="card-title">{% if routines %}Create New or Edit Routine{% else %}Create Your First Session{% endif %}</h2>
+        
+        <form method="POST" novalidate>
+            {{ form.hidden_tag() }}
+
+            <div class="form-group">
+                {{ form.practice_type.label }}
+                {% if form.practice_type.errors %}
+                    {{ form.practice_type(class="form-control is-invalid") }}
+                    <div class="form-error">
+                        {% for error in form.practice_type.errors %}
+                            <div>{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    {{ form.practice_type() }}
+                {% endif %}
+            </div>
+
+            <div class="form-group" id="tempo-group" style="display: none;">
+                {{ form.tempo.label }}
+                {% if form.tempo.errors %}
+                    {{ form.tempo(class="form-control is-invalid", min=40, max=180) }}
+                    <div class="form-error">
+                        {% for error in form.tempo.errors %}
+                            <div>{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    {{ form.tempo(min=40, max=180, placeholder="40-180") }}
+                {% endif %}
+                <small style="color: #7f8c8d;">Range: 40-180 BPM</small>
+            </div>
+
+            <div class="form-group">
+                {{ form.comments.label }}
+                {% if form.comments.errors %}
+                    {{ form.comments(class="form-control is-invalid", maxlength=500) }}
+                    <div class="form-error">
+                        {% for error in form.comments.errors %}
+                            <div>{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    {{ form.comments(maxlength=500, placeholder="e.g., C Major scales, increasing tempo; Alberti bass patterns; Moonlight Sonata 1st movement") }}
+                {% endif %}
+                <div class="char-count"><span id="char-count">0</span> / 500 characters</div>
+            </div>
+
+            <div class="form-group">
+                {{ form.submit(class="btn btn-success") }}
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Show/hide tempo field based on practice type
+const practiceTypeSelect = document.querySelector('[name="practice_type"]');
+const tempoGroup = document.getElementById('tempo-group');
+const tempoInput = document.querySelector('[name="tempo"]');
+const commentsField = document.querySelector('[name="comments"]');
+const charCount = document.getElementById('char-count');
+
+function updateTempoVisibility() {
+    const selectedType = practiceTypeSelect.value;
+    if (['Chords', 'Scales'].includes(selectedType)) {
+        tempoGroup.style.display = 'block';
+    } else {
+        tempoGroup.style.display = 'none';
+        tempoInput.value = '';
+    }
+}
+
+// Update character count
+commentsField.addEventListener('input', function() {
+    charCount.textContent = this.value.length;
+});
+
+// Initial setup
+practiceTypeSelect.addEventListener('change', updateTempoVisibility);
+updateTempoVisibility();
+
+// Select routine function
+function selectRoutine(routineId, practiceType, tempo, comments) {
+    practiceTypeSelect.value = practiceType;
+    tempoInput.value = tempo || '';
+    commentsField.value = comments || '';
+    charCount.textContent = (comments || '').length;
+    updateTempoVisibility();
+    
+    // Scroll to form
+    document.querySelector('.card').scrollIntoView({ behavior: 'smooth' });
+}
+</script>
+{% endblock %}

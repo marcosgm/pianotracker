@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Session History - Piano Session Tracker{% endblock %}
+
+{% block content %}
+<div class="section">
+    <h1 class="page-title">Session History & Statistics</h1>
+
+    {% if new_session %}
+    <div class="alert alert-success">
+        ✓ Session logged successfully!
+        <button class="alert-close" onclick="this.parentElement.style.display='none';">&times;</button>
+    </div>
+    {% endif %}
+
+    <div class="grid grid-3">
+        <div class="stat-box">
+            <div class="stat-value">{{ total_sessions }}</div>
+            <div class="stat-label">Total Sessions</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-value">{{ most_frequent_type or "—" }}</div>
+            <div class="stat-label">Most Frequent Type</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-value">{% if average_tempo %}{{ "%.0f"|format(average_tempo) }}{% else %}—{% endif %}</div>
+            <div class="stat-label">Avg Tempo (BPM)</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2 class="card-title">Filter by Practice Type</h2>
+        <form method="GET" style="display: flex; gap: 1rem; align-items: flex-end;">
+            <div style="flex: 1;">
+                <label for="type-filter">Practice Type:</label>
+                <select name="type" id="type-filter" style="width: 100%; padding: 0.75rem; border: 1px solid #bdc3c7; border-radius: 4px;">
+                    <option value="all" {% if current_filter == 'all' %}selected{% endif %}>All Types</option>
+                    <option value="Chords" {% if current_filter == 'Chords' %}selected{% endif %}>Chords</option>
+                    <option value="Scales" {% if current_filter == 'Scales' %}selected{% endif %}>Scales</option>
+                    <option value="Course" {% if current_filter == 'Course' %}selected{% endif %}>Course</option>
+                    <option value="Songs" {% if current_filter == 'Songs' %}selected{% endif %}>Songs</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Filter</button>
+        </form>
+    </div>
+
+    {% if sessions %}
+    <div class="card">
+        <h2 class="card-title">Sessions ({{ sessions|length }})</h2>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Type</th>
+                    <th>Tempo</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for session in sessions %}
+                <tr>
+                    <td>{{ session.session_date.strftime('%b %d, %Y') }}</td>
+                    <td>{{ session.session_time.strftime('%H:%M') }}</td>
+                    <td><strong>{{ session.practice_type }}</strong></td>
+                    <td>
+                        {% if session.tempo %}
+                            {{ session.tempo }} BPM
+                        {% else %}
+                            <span style="color: #95a5a6;">(No tempo)</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if session.comments %}
+                            <span title="{{ session.comments }}">{{ session.comments[:50] }}{% if session.comments|length > 50 %}...{% endif %}</span>
+                        {% else %}
+                            <span style="color: #95a5a6;">(No notes)</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">📝</div>
+        <div class="empty-state-title">No sessions logged yet</div>
+        <div class="empty-state-text">Start practicing and logging your sessions to build your history!</div>
+        <a href="/session/new" class="btn btn-primary">Log First Session</a>
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <a href="/session/new" class="btn btn-primary">➕ Log Another Session</a>
+        <a href="/dashboard" class="btn btn-secondary" style="margin-left: 0.5rem;">Back to Dashboard</a>
+    </div>
+</div>
+{% endblock %}

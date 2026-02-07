@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block title %}Error - Piano Session Tracker{% endblock %}
+
+{% block content %}
+<div class="error-container">
+    <h1 class="error-code">{{ status_code }}</h1>
+    <p class="error-message">{{ message }}</p>
+    <a href="/" class="btn btn-primary">Back to Home</a>
+</div>
+{% endblock %}
