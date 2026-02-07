@@ -22,6 +22,7 @@
 │             │         ├──────────────────┤
 │             │         │ id (PK)          │
 │             │         │ user_id (FK)     │
+│             │         │ name             │
 │             │         │ practice_type    │
 │             │         │ tempo (nullable) │
 │             │         │ comments         │
@@ -64,7 +65,7 @@
 
 ### PracticeSession
 
-**Purpose**: Record a single practice session logged by a user with type, optional tempo, optional comments, and timestamp.
+**Purpose**: Record a single practice session logged by a user with type, optional tempo, mandatory comments, and timestamp.
 
 **Fields**:
 
@@ -74,7 +75,7 @@
 | `user_id` | Integer | NOT NULL, FOREIGN KEY → User.id | Reference to the owning User |
 | `practice_type` | String (20) | NOT NULL, ENUM ('Chords', 'Scales', 'Course', 'Songs') | Type of practice performed |
 | `tempo` | Integer | NULLABLE | BPM value; only applicable when practice_type = 'Chords' or 'Scales'; else NULL |
-| `comments` | Text | NULLABLE | Free-form text (max 500 characters) describing what was practiced (e.g., "C Major scales, increasing tempo gradually") |
+| `comments` | Text | NULLABLE (app-mandatory) | Free-form text (max 500 characters) describing what was practiced (e.g., "C Major scales, increasing tempo gradually"). DB column is nullable for flexibility, but the application requires non-empty comments on every session. |
 | `session_date` | Date | NOT NULL | Date when the practice occurred (e.g., 2026-02-07) |
 | `session_time` | Time | NOT NULL | Time when the practice started (e.g., 14:30:00) |
 | `created_at` | DateTime | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Timestamp when record was created (UTC) |
@@ -85,7 +86,8 @@
 - `tempo` must be between 40 and 180 (inclusive) if practice_type is 'Chords' or 'Scales'
 - `tempo` must be numeric (if provided)
 - `comments` must be max 500 characters (rejected or truncated if longer)
-- `comments` is optional; NULL is valid
+- `comments` is mandatory at the application level (form rejects empty/blank comments)
+- DB column remains nullable for migration flexibility, but NULL should never occur in practice
 - `session_date` must not be in the future (cannot log sessions for tomorrow)
 - `session_date` must not be more than 30 days in the past (prevent accidental backdating)
 - `session_time` must be in valid time format (00:00:00 to 23:59:59)
@@ -104,7 +106,7 @@
 
 ### PracticeRoutine
 
-**Purpose**: Remember and offer quick-select options for frequently used practice combinations (practice_type, tempo, comments).
+**Purpose**: User-named presets that pre-fill the session form for quick logging. Routines are a UI convenience — they do not appear in session history. Only PracticeSessions are tracked.
 
 **Fields**:
 
@@ -112,20 +114,20 @@
 |-------|------|-----------|-------------|
 | `id` | Integer | PRIMARY KEY, NOT NULL, AUTO INCREMENT | Unique routine identifier |
 | `user_id` | Integer | NOT NULL, FOREIGN KEY → User.id | Reference to the owning User |
+| `name` | String (100) | NOT NULL | User-chosen routine name (e.g., "Morning Scales", "Beethoven Practice") |
 | `practice_type` | String (20) | NOT NULL, ENUM ('Chords', 'Scales', 'Course', 'Songs') | Type of practice for this routine |
-| `tempo` | Integer | NULLABLE | BPM value; only applicable when practice_type = 'Chords' or 'Scales'; else NULL |
-| `comments` | Text | NULLABLE | Free-form text (max 500 characters) describing the routine |
-| `last_used_at` | DateTime | NULLABLE | Timestamp when this routine was last used (for sorting routines by recency) |
+| `tempo` | Integer | NULLABLE | Default BPM value; only applicable when practice_type = 'Chords' or 'Scales'; else NULL |
+| `comments` | Text | NOT NULL | Pre-filled session description (max 500 characters) |
+| `last_used_at` | DateTime | NULLABLE | Timestamp when this routine was last saved/updated (for sorting by recency) |
 | `created_at` | DateTime | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Timestamp when routine was first created (UTC) |
 
 **Validation Rules**:
+- `name` is required, max 100 characters
+- `name` must be unique per user (enforced by UNIQUE constraint on `user_id, name`)
 - `practice_type` must be one of: 'Chords', 'Scales', 'Course', 'Songs'
 - `tempo` must be NULL if practice_type is 'Course' or 'Songs'
 - `tempo` must be between 40 and 180 (inclusive) if practice_type is 'Chords' or 'Scales'
-- `comments` must be max 500 characters
-- `comments` is optional; NULL is valid
-- Combination of `user_id`, `practice_type`, `tempo`, and `comments` must be unique (no duplicate routines per user)
-- Database enforces uniqueness with UNIQUE constraint on (user_id, practice_type, tempo, comments)
+- `comments` is required, max 500 characters
 
 **Relationships**:
 - Many PracticeRoutines belong to one User (N:1)
@@ -135,15 +137,14 @@
 **Indexes**:
 - Index on `user_id` (for retrieving user's routines)
 - Index on `user_id, last_used_at DESC` (for efficient sorting by recency)
-- UNIQUE constraint on (user_id, practice_type, tempo, comments) (for deduplication)
+- UNIQUE constraint on `(user_id, name)` (each user's routine names must be unique)
 
 **Notes**:
-- Routines are NOT manually created; they are automatically derived from sessions
-- When a user saves a session, the system checks if a routine with the same practice_type, tempo, and comments exists
-- If routine exists, update `last_used_at` timestamp
-- If routine does not exist, create a new routine record
-- When displaying routines, order by `last_used_at DESC` (most recently used first)
-- Routines with NULL `last_used_at` are new routines not yet used (theoretical case)
+- Routines are opt-in: when logging a session, the user may check "Save this as a Routine" and provide a name
+- If the user saves with the same name as an existing routine, that routine is updated with the new practice_type, tempo, and comments
+- When a user clicks a saved routine in the UI, the session form is pre-filled with the routine's data; practice_type and comments are locked, only tempo (BPM) is editable
+- The submitted form is a normal PracticeSession — routines never appear in session history
+- When displaying routines, order by `last_used_at DESC` (most recently saved first)
 
 
 
@@ -153,11 +154,13 @@
 
 ### Comments and Routines
 
-- `comments` field is optional (nullable) to support users who prefer not to document their sessions
-- Routines are NOT a separate user-created entity; they are automatically derived from the unique combinations of practice_type, tempo, and comments already saved in sessions
-- When a session is saved, the system checks if a routine with that exact combination exists and either creates a new routine or updates the `last_used_at` timestamp
-- This approach avoids requiring users to manage routines separately and ensures routines always reflect actual practice patterns
-- Routines are displayed ordered by `last_used_at DESC` to show most-recently used practices first
+- `comments` field is mandatory at the application level (form and server validation reject empty comments) to ensure every session is meaningfully described
+- The DB column for `PracticeSession.comments` remains nullable for migration flexibility, but a NULL value should never occur in normal usage
+- Routines are user-named presets, created opt-in when the user checks "Save this as a Routine" and provides a name
+- Routines pre-fill the session form; they are a UI convenience and do not affect session history
+- When a user clicks a saved routine, the form is pre-filled with practice_type and comments locked; only the tempo (BPM) is editable
+- If a user saves a routine with the same name as an existing one, the existing routine is updated
+- Routines are displayed ordered by `last_used_at DESC` to show most-recently saved first
 - Comments are limited to 500 characters to keep them brief but meaningful; longer documentation can be tracked externally
 
 ### Timezone Handling

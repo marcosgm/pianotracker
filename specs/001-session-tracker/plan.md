@@ -7,7 +7,7 @@
 
 ## Summary
 
-Build a user-friendly piano practice session tracker website using Flask and SQLite. Pianists register, log their daily practice sessions (selecting from Chords, Scales, Course, or Songs), with optional tempo input (40-180 BPM) for tempo-based practice types and optional comments describing what they practiced. The app remembers past practice combinations as "routines" and offers them as quick-select options when logging new sessions. Users can see a complete session history with statistics (total sessions, most frequent practice type) and support filtering by practice type. Comments and routine management help users document and reuse their practice patterns. All data persists securely per user, accessible only when logged in.
+Build a user-friendly piano practice session tracker website using Flask and SQLite. Pianists register, log their daily practice sessions (selecting from Chords, Scales, Course, or Songs), with optional tempo input (40-180 BPM) for tempo-based practice types and mandatory comments describing what they practiced. Users can optionally save a session as a named "routine" to pre-fill the form in future sessions — when reusing a routine, practice type and comments are locked and only the tempo (BPM) is editable. Users can see a complete session history with statistics (total sessions, most frequent practice type) and support filtering by practice type. All data persists securely per user, accessible only when logged in.
 
 **Technical Approach**: Server-side rendered Flask application with Jinja2 templates and CSS styling. SQLite database for reliable local/development storage. Simple form-based UI with progressive enhancement. Minimal JavaScript, emphasis on clarity and ease of use for beginner pianists.
 
@@ -125,7 +125,8 @@ See [data-model.md](data-model.md)
 
 **Key Entities**:
 - **User**: id, email (unique), password_hash, created_at
-- **PracticeSession**: id, user_id (FK), practice_type, tempo (optional), session_date, session_time, created_at
+- **PracticeSession**: id, user_id (FK), practice_type, tempo (optional), comments (app-mandatory), session_date, session_time, created_at
+- **PracticeRoutine**: id, user_id (FK), name (unique per user), practice_type, tempo (optional), comments, last_used_at, created_at
 
 ### API Routes & Contracts
 

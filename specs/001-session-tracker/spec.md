@@ -40,9 +40,9 @@ As a pianist, I need to create an account and log in to the website so that I ca
 
 ### User Story 2 - Log a Piano Practice Session with Details (Priority: P1)
 
-As a pianist, I need to record a practice session by selecting the type, adding optional tempo, and documenting what I practiced so that I can remember what I worked on and reuse that routine later.
+As a pianist, I need to record a practice session by selecting the type, adding optional tempo, and documenting what I practiced so that I can remember what I worked on and optionally save the combination as a reusable routine.
 
-**Why this priority**: This is the core value proposition of the application. Users need the ability to create and save sessions immediately after creating an account to start building their practice history. Comments help users document their practice and create reusable routines. Without this feature, the application has no purpose.
+**Why this priority**: This is the core value proposition of the application. Users need the ability to create and save sessions immediately after creating an account to start building their practice history. Mandatory comments ensure every session is meaningfully described. Without this feature, the application has no purpose.
 
 **Independent Test**: Can be fully tested by logging in, creating a session with a practice type, optional tempo, and comments, and verifying it appears in the session list with comments visible. Delivers the core session recording capability with documentation.
 
@@ -52,29 +52,32 @@ As a pianist, I need to record a practice session by selecting the type, adding 
 2. **Given** the session form is open, **When** I select "Chords" from the practice type selector, **Then** a tempo input field appears allowing me to enter a value between 40-180 BPM
 3. **Given** the session form is open, **When** I select "Scales" from the practice type selector, **Then** a tempo input field appears allowing me to enter a value between 40-180 BPM
 4. **Given** the session form is open, **When** I select "Course" or "Songs", **Then** no tempo field is displayed (these types don't require tempo input)
-5. **Given** the session form is open, **When** I look at the form, **Then** I see a "Comments" text field where I can describe what I practiced (optional, up to 500 characters)
-6. **Given** I filled in all required fields (practice type and tempo if applicable), **When** I click "Save Session", **Then** the session is recorded with a timestamp and any comments, and I see a success confirmation
-7. **Given** I started entering a session but don't complete it, **When** I navigate away from the form, **Then** the incomplete session data is not saved
-8. **Given** I entered a tempo value outside the 40-180 BPM range, **When** I try to submit the form, **Then** I see an error message stating "Tempo must be between 40 and 180 BPM"
+5. **Given** the session form is open, **When** I look at the form, **Then** I see a mandatory "Comments" text field where I must describe what I practiced (up to 500 characters)
+6. **Given** I filled in all required fields (practice type, tempo if applicable, and comments), **When** I click "Save Session", **Then** the session is recorded with a timestamp and I see a success confirmation
+7. **Given** the session form is open, **When** I check "Save this as a Routine" and provide a name, **Then** the session combination is saved as a named routine for future quick access
+8. **Given** I started entering a session but don't complete it, **When** I navigate away from the form, **Then** the incomplete session data is not saved
+9. **Given** I entered a tempo value outside the 40-180 BPM range, **When** I try to submit the form, **Then** I see an error message stating "Tempo must be between 40 and 180 BPM"
+10. **Given** I submitted the form with an empty Comments field, **When** I try to save, **Then** I see an error message indicating comments are required
 
 ---
 
-### User Story 3 - Select or Create a Practice Session Routine (Priority: P2)
+### User Story 3 - Use Saved Routines to Log Sessions Quickly (Priority: P2)
 
-As a pianist, I need to see my past practice combinations (type, tempo, comments) and quickly reuse them or create new routines so that I can efficiently log sessions without re-entering the same information.
+As a pianist, I need to save named practice routines and quickly reuse them so that I can efficiently log sessions without re-entering the same information.
 
-**Why this priority**: This feature significantly improves the user experience by reducing repetitive data entry. Since many practice sessions follow similar patterns (e.g., "C Major Scales at 100 BPM"), offering them as quick-select options makes the app more useful. However, basic session logging (P1) is more critical than optimization.
+**Why this priority**: This feature significantly improves the user experience by reducing repetitive data entry. Since many practice sessions follow similar patterns (e.g., "Morning Scales" at 100 BPM), offering saved routines as quick-select options makes the app more useful. However, basic session logging (P1) is more critical than optimization.
 
-**Independent Test**: Can be fully tested by logging 2-3 sessions, then starting a new session and verifying past routines appear as selectable options. Delivers efficient session creation workflow.
+**Independent Test**: Can be fully tested by logging a session with "Save this as a Routine" checked, then starting a new session and verifying the saved routine appears and pre-fills the form. Delivers efficient session creation workflow.
 
 **Acceptance Scenarios**:
 
-1. **Given** I am logged in and have previously logged sessions, **When** I click "New Session", **Then** I see a section showing "Past Routines" with my previous session combinations listed
-2. **Given** I am viewing past routines, **When** I click on a routine (e.g., "Chords at 120 BPM - C Major arpeggios"), **Then** the form pre-fills with that routine's practice type, tempo, and comments
-3. **Given** a routine is pre-selected, **When** I optionally modify any field and click "Save Session", **Then** a new session is created with the modified values
-4. **Given** I have never logged a session before, **When** I click "New Session", **Then** I see no past routines section, only the "Create New Routine" form
-5. **Given** I am creating a session, **When** I complete all fields and click "Save Session", **Then** this combination is automatically remembered as a routine for future sessions
-6. **Given** multiple sessions have the same type/tempo/comments combination, **When** I view past routines, **Then** only one routine entry appears for that combination (de-duplicated)
+1. **Given** I am logged in and have saved routines, **When** I click "New Session", **Then** I see a "Saved Routines" section listing my named routines
+2. **Given** I am viewing saved routines, **When** I click on a routine (e.g., "Morning Scales"), **Then** the form pre-fills with that routine's practice type and comments (locked), and tempo is editable
+3. **Given** a routine is pre-selected, **When** I adjust the tempo (BPM) and click "Save Session", **Then** a new session is created with the routine's type and comments plus the adjusted tempo
+4. **Given** a routine is pre-selected, **When** I click "Clear", **Then** the form unlocks and I can enter all fields freely
+5. **Given** I have no saved routines, **When** I click "New Session", **Then** I see no saved routines section, only the session form
+6. **Given** I am creating a session, **When** I check "Save this as a Routine" and provide a name, **Then** the routine is saved for future use
+7. **Given** I save a routine with the same name as an existing one, **When** I submit, **Then** the existing routine is updated with the new practice type, tempo, and comments
 
 ---
 
@@ -103,8 +106,9 @@ As a pianist, I need to see a history of all my past practice sessions with stat
 - What happens if a user tries to log a session with tomorrow's date or a date far in the future?
 - How does the system behave if a user tries to access their history while not authenticated (e.g., session cookie expires)?
 - What happens if a user enters comments longer than 500 characters?
-- How does the system deduplicate routines when the same type/tempo/comments combination is logged multiple times?
-- What happens to past routines if the user never logs a session again?
+- What happens if a user tries to save a routine with an empty name?
+- What happens if a user saves a routine with the same name as an existing one? (Answer: existing routine is updated)
+- What happens if a user submits an empty Comments field? (Answer: form rejects it — comments are mandatory)
 
 ## Requirements *(mandatory)*
 
@@ -121,14 +125,14 @@ As a pianist, I need to see a history of all my past practice sessions with stat
 - **FR-009**: System MUST display a tempo input field (range 40-180 BPM) when "Chords" or "Scales" practice type is selected
 - **FR-010**: System MUST NOT display a tempo input field when "Course" or "Songs" practice type is selected
 - **FR-011**: System MUST validate that tempo input for Chords and Scales is a numeric value between 40 and 180 BPM (inclusive)
-- **FR-012**: System MUST provide a "Comments" text field (max 500 characters) where users can document what they practiced (optional)
-- **FR-013**: System MUST record the session with the practice type, tempo (if applicable), comments (if provided), and the current date/time as soon as the user saves
+- **FR-012**: System MUST provide a mandatory "Comments" text field (max 500 characters) where users must describe what they practiced
+- **FR-013**: System MUST record the session with the practice type, tempo (if applicable), comments, and the current date/time as soon as the user saves
 - **FR-014**: System MUST persist all session data securely so that sessions remain available after logout and login
-- **FR-015**: System MUST extract and remember Practice Session Routines (unique combinations of practice_type, tempo, and comments) from past sessions
-- **FR-016**: System MUST display past routines as quick-select options when creating a new session
-- **FR-017**: System MUST pre-fill the new session form with practice_type, tempo, and comments when a user selects a past routine
-- **FR-018**: System MUST allow users to modify pre-filled routine values before saving
-- **FR-019**: System MUST deduplicate routines so only one appears per unique combination of practice_type, tempo, and comments
+- **FR-015**: System MUST allow users to optionally save a session as a named routine by checking "Save this as a Routine" and providing a name
+- **FR-016**: System MUST display saved routines as quick-select options in a "Saved Routines" section when creating a new session
+- **FR-017**: System MUST pre-fill the session form with practice_type and comments (locked) when a user clicks a saved routine; only tempo (BPM) is editable
+- **FR-018**: System MUST allow users to clear the routine pre-fill and enter all fields freely
+- **FR-019**: System MUST enforce unique routine names per user; saving with an existing name updates that routine
 - **FR-020**: System MUST provide a "Session History" view that displays all logged sessions for the authenticated user
 - **FR-021**: System MUST display sessions in reverse chronological order (most recent first) in the Session History view
 - **FR-022**: System MUST show for each session: practice type, date, time, tempo (if applicable), and comments (if provided)
@@ -136,13 +140,13 @@ As a pianist, I need to see a history of all my past practice sessions with stat
 - **FR-024**: System MUST allow users to filter the session history by practice type
 - **FR-025**: System MUST display a helpful message when a user has no sessions logged yet
 - **FR-026**: System MUST handle invalid input in tempo fields by displaying a user-friendly error message
-- **FR-027**: System MUST truncate comments longer than 500 characters or reject them with an error message
+- **FR-027**: System MUST reject comments that are empty or blank, and reject comments longer than 500 characters with an error message
 
 ### Key Entities
 
 - **User**: Represents a registered pianist with a unique email address, hashed password, and an account creation timestamp. Each user can have many sessions and routines associated with their account.
-- **PracticeSession**: Represents a single practice session logged by a user, containing the practice type (Chords, Scales, Course, or Songs), optional tempo value (40-180 BPM for tempo-based types), optional comments (up to 500 characters describing what was practiced), session date, and session time. Each session belongs to exactly one user.
-- **PracticeRoutine**: Represents a reusable practice template derived from unique combinations of practice_type, tempo (if applicable), and comments. When a user logs a session with the same combination multiple times, it becomes a routine available for quick selection. Each routine belongs to one user and is displayed as a quick-select option when creating new sessions.
+- **PracticeSession**: Represents a single practice session logged by a user, containing the practice type (Chords, Scales, Course, or Songs), optional tempo value (40-180 BPM for tempo-based types), mandatory comments (up to 500 characters describing what was practiced), session date, and session time. Each session belongs to exactly one user.
+- **PracticeRoutine**: Represents a user-named preset that pre-fills the session form for quick logging. Contains a unique name (per user), practice_type, optional tempo, and comments. Routines are created opt-in when the user checks "Save this as a Routine" and provides a name. They are a UI convenience only — only PracticeSessions appear in history.
 - **PracticeType**: Represents the classification of a practice session. Values are: Chords, Scales, Course, Songs. Each practice type has different associated metadata requirements (tempo for Chords and Scales only).
 
 ## Success Criteria *(mandatory)*
@@ -160,10 +164,10 @@ As a pianist, I need to see a history of all my past practice sessions with stat
 - **SC-004**: Session history displays all logged sessions with 100% accuracy of recorded practice type, date, time, tempo, and comments
 - **SC-005**: The application correctly calculates and displays session statistics (total count, most frequent practice type) with zero calculation errors
 - **SC-006**: Session filtering by practice type returns only sessions of the selected type with 100% accuracy
-- **SC-007**: Form validation prevents invalid data entry (invalid email, short passwords, out-of-range tempos, oversized comments) and provides clear error messages
-- **SC-008**: Past practice routines are displayed as quick-select options, reducing session creation time for returning users
-- **SC-009**: Routines are correctly deduplicated so each unique combination of type/tempo/comments appears only once in the routine list
-- **SC-010**: Pre-filled routine values can be modified before saving without errors
+- **SC-007**: Form validation prevents invalid data entry (invalid email, short passwords, out-of-range tempos, empty comments, oversized comments) and provides clear error messages
+- **SC-008**: Saved routines are displayed as quick-select options, pre-filling the form with locked type/comments and editable tempo
+- **SC-009**: Routine names are unique per user; saving a routine with an existing name updates it
+- **SC-010**: Pre-filled routine values can be cleared to unlock all fields for free entry
 - **SC-011**: The system supports at least 100 concurrent users without degradation in response times for session logging and retrieval
 - **SC-012**: System responds to user actions (session creation, history retrieval, filtering, routine selection) in under 2 seconds in normal operating conditions
 
@@ -175,7 +179,7 @@ As a pianist, I need to see a history of all my past practice sessions with stat
 - All sessions are recorded with the user's local time; timezone conversion is not required for MVP
 - Future feature items (session suggestions, piano key visualizations) are not included in this MVP specification
 - Users may log sessions from the current date only; backdating or future-dating sessions beyond reasonable bounds should be prevented
-- Routines are automatically derived from past sessions; users cannot manually create routines without logging a session first
-- Comments are free-form text (no markdown, no special formatting required)
-- Routines are shown in order of most recently used for quick access
-- When a user selects a routine, all fields are pre-filled; they can optionally modify any field, and saving creates a new session (not modifying the routine)
+- Routines are user-named presets created opt-in when saving a session; they are not auto-derived
+- Comments are mandatory free-form text (no markdown, no special formatting required)
+- Routines are shown in order of most recently saved/updated for quick access
+- When a user selects a routine, practice type and comments are pre-filled and locked; only BPM is editable. The user can clear the selection to enter all fields freely
