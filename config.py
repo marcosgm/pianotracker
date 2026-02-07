@@ -26,7 +26,10 @@ class DevelopmentConfig(Config):
     DEBUG = True
     TESTING = False
     SESSION_COOKIE_SECURE = False  # Allow HTTP during development
-    SQLALCHEMY_DATABASE_URI = "sqlite:///instance/pianotracker.db"
+    # Ensure instance directory exists
+    _instance_path = os.path.join(os.path.dirname(__file__), "instance")
+    os.makedirs(_instance_path, exist_ok=True)
+    SQLALCHEMY_DATABASE_URI = f"sqlite:///{_instance_path}/pianotracker.db"
     SQLALCHEMY_ECHO = False
 
 
