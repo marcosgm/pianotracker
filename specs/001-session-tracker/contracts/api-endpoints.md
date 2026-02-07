@@ -185,7 +185,7 @@ email=user@example.com&password=MySecurePassword123
 
 ### 7. GET /session/new
 
-**Purpose**: Display form to create a new practice session
+**Purpose**: Display form to create a new practice session with past routines and optional comments
 
 **Method**: `GET`
 
@@ -193,10 +193,19 @@ email=user@example.com&password=MySecurePassword123
 
 **Response - Success**:
 - **Status**: `200 OK`
-- **Body**: HTML form with fields:
-  - Practice Type selector (dropdown or radio buttons): Chords, Scales, Course, Songs
-  - Tempo input field (hidden by default, shown via JavaScript if Chords/Scales selected, or shown on page load if previously submitted)
-  - "Save Session" button
+- **Body**: HTML form with sections:
+
+    **Past Routines Section** (if user has logged sessions before):
+    - Heading: "Quick Select: Past Routines"
+    - List showing all unique past practice combinations (sorted by most recently used)
+    - Each routine displays: `{practice_type}` + (` at {tempo} BPM` if applicable) + (` - {comments}` if comments exist)
+    - Clicking a routine pre-fills the form below with that routine's values
+
+    **Create New/Edit Routine Section**:
+    - Practice Type selector (dropdown or radio buttons): Chords, Scales, Course, Songs
+    - Tempo input field (hidden by default, shown via JavaScript if Chords/Scales selected, or shown on page load if previously submitted)
+    - Comments textarea field (optional, max 500 characters, shows character count)
+    - "Save Session" button
 
 **Response - Unauthenticated**:
 - **Status**: `302 Found` (Redirect to `/login`)
@@ -205,12 +214,15 @@ email=user@example.com&password=MySecurePassword123
 - When practice type changes, show/hide tempo field based on selection
 - Tempo input has HTML5 `type="number"` with `min="40"` `max="180"`
 - Tempo input is required if practice_type = Chords or Scales
+- When user clicks a routine, JS pre-fills form and highlights the selected routine
+- Comments field shows live character count (e.g., "45 / 500 characters")
+- Routine selection can be modified before saving (user can edit pre-filled values)
 
 ---
 
 ### 8. POST /session
 
-**Purpose**: Save a new practice session
+**Purpose**: Save a new practice session and create/update a routine
 
 **Method**: `POST`
 
@@ -221,13 +233,14 @@ email=user@example.com&password=MySecurePassword123
 ```
 Content-Type: application/x-www-form-urlencoded
 
-practice_type=Chords&tempo=120
+practice_type=Chords&tempo=120&comments=C%20Major%20arpeggios%20at%20increasing%20tempos
 ```
 
 | Field | Type | Required | Constraints |
 |-------|------|----------|-------------|
 | `practice_type` | String | Yes | One of: Chords, Scales, Course, Songs |
 | `tempo` | Integer | Conditional | Required if practice_type = Chords or Scales; must be 40-180; else omitted |
+| `comments` | String | No | Optional free text (max 500 chars); can be empty/omitted |
 
 **Response - Success**:
 - **Status**: `302 Found` (Redirect to `/session/history?new=true`)
@@ -236,25 +249,30 @@ practice_type=Chords&tempo=120
 
 **Response - Validation Error**:
 - **Status**: `400 Bad Request`
-- **Body**: HTML form (same as GET /session/new) with inline error messages
+- **Body**: HTML form (same as GET /session/new) with inline error messages and retained form values
 - **Errors Shown**:
   - "Please select a practice type" (if practice_type missing)
   - "Invalid practice type" (if practice_type not in enum)
   - "Tempo is required for Chords and Scales" (if tempo missing for tempo-based types)
   - "Tempo must be a number" (if tempo is not numeric)
   - "Tempo must be between 40 and 180 BPM" (if tempo out of range)
+  - "Comments must be 500 characters or less" (if comments too long)
 
 **Response - Unauthenticated**:
 - **Status**: `302 Found` (Redirect to `/login`)
 
-**Behavior**:
+**Session Creation & Routine Management**:
 - Create PracticeSession record with:
   - `user_id` from authenticated session
   - `practice_type` from form
   - `tempo` from form (null if not applicable)
+  - `comments` from form (null if empty; max 500 chars)
   - `session_date` = today's date
   - `session_time` = current time
   - `created_at` = current UTC timestamp
+- Check if a routine exists with same (user_id, practice_type, tempo, comments):
+  - If exists: Update routine's `last_used_at` = current timestamp
+  - If does not exist: Create new routine record with these values and `last_used_at` = current timestamp
 - Commit transaction
 - Redirect to history with success indicator
 
@@ -262,7 +280,7 @@ practice_type=Chords&tempo=120
 
 ### 9. GET /session/history
 
-**Purpose**: Display user's session history with filtering and statistics
+**Purpose**: Display user's session history with filtering, statistics, and comments
 
 **Method**: `GET`
 
@@ -298,6 +316,7 @@ practice_type=Chords&tempo=120
       - Time (e.g., "14:30")
       - Practice Type (e.g., "Chords")
       - Tempo (e.g., "120 BPM") or "(No tempo)" if N/A
+      - Comments (e.g., "C Major arpeggios") or "(No notes)" if empty; truncate to ~100 chars if longer
     - Ordered from most recent to oldest (DESC by session_date, then session_time)
 
 **Response - Unauthenticated**:

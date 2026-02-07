@@ -7,7 +7,7 @@
 
 ## Summary
 
-Build a user-friendly piano practice session tracker website using Flask and SQLite. Pianists register, log their daily practice sessions (selecting from Chords, Scales, Course, or Songs), with optional tempo input (40-180 BPM) for tempo-based practice types. The app displays a complete session history with statistics (total sessions, most frequent practice type) and supports filtering by practice type. All data persists securely per user, accessible only when logged in.
+Build a user-friendly piano practice session tracker website using Flask and SQLite. Pianists register, log their daily practice sessions (selecting from Chords, Scales, Course, or Songs), with optional tempo input (40-180 BPM) for tempo-based practice types and optional comments describing what they practiced. The app remembers past practice combinations as "routines" and offers them as quick-select options when logging new sessions. Users can see a complete session history with statistics (total sessions, most frequent practice type) and support filtering by practice type. Comments and routine management help users document and reuse their practice patterns. All data persists securely per user, accessible only when logged in.
 
 **Technical Approach**: Server-side rendered Flask application with Jinja2 templates and CSS styling. SQLite database for reliable local/development storage. Simple form-based UI with progressive enhancement. Minimal JavaScript, emphasis on clarity and ease of use for beginner pianists.
 
@@ -60,9 +60,9 @@ specs/[###-feature]/
 ```text
 src/
 ├── app.py                      # Flask application factory and config
-├── models.py                   # SQLAlchemy User and PracticeSession models
+├── models.py                   # SQLAlchemy User, PracticeSession, PracticeRoutine models
 ├── forms.py                    # Form definitions (registration, login, session)
-├── utils.py                    # Helper functions (password hashing, validation)
+├── utils.py                    # Helper functions (password hashing, validation, routine management)
 ├── templates/
 │   ├── base.html               # Base layout (header, nav, footer)
 │   ├── index.html              # Landing page (unauthenticated)
@@ -71,8 +71,8 @@ src/
 │   │   └── login.html          # Login form
 │   ├── dashboard.html          # Logged-in user dashboard
 │   ├── session/
-│   │   ├── new.html            # New session form
-│   │   └── history.html        # Session history + filtering + stats
+│   │   ├── new.html            # New session form with past routines + comments
+│   │   └── history.html        # Session history + filtering + stats + comments
 │   └── error.html              # Error page template
 ├── static/
 │   └── styles.css              # Main CSS stylesheet (responsive, minimal)
@@ -84,6 +84,7 @@ tests/
 ├── test_auth.py                # Authentication user journey tests
 ├── test_session_logging.py     # Session creation user journey tests
 ├── test_session_history.py     # History viewing user journey tests
+├── test_routines.py            # Routine selection and deduplication tests
 └── test_validation.py          # Input validation tests
 
 requirements.txt                # Python dependencies
