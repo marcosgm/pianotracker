@@ -15,9 +15,7 @@
             {% for routine in routines %}
             <div class="routine-item" 
                  id="routine-card-{{ routine.id }}" 
-                 data-practice-type="{{ routine.practice_type }}" 
-                 data-tempo="{{ routine.tempo or '' }}" 
-                 data-comments="{{ routine.comments }}"
+                 data-routine-id="{{ routine.id }}"
                  style="padding: 1rem; background: white; border: 1px solid #bdc3c7; border-radius: 4px; cursor: pointer; transition: all 0.3s; margin-bottom: 0.5rem;">
                 <div style="font-weight: 600; color: #2c3e50;">{{ routine.name }}</div>
                 <div style="font-size: 0.9rem; color: #7f8c8d;">{{ routine.practice_type }}{% if routine.tempo %} @ {{ routine.tempo }} BPM{% endif %}</div>
@@ -26,6 +24,19 @@
             </div>
             {% endfor %}
         </div>
+
+        <script type="application/json" id="routines-data">
+        [
+            {% for routine in routines %}
+            {
+                "id": {{ routine.id }},
+                "practice_type": {{ routine.practice_type|tojson }},
+                "tempo": {{ routine.tempo|tojson }},
+                "comments": {{ routine.comments|tojson }}
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ]
+        </script>
     </div>
     {% endif %}
 
@@ -111,7 +122,7 @@
 <script>
 const practiceTypeSelect = document.querySelector('[name="practice_type"]');
 const tempoGroup = document.getElementById('tempo-group');
-const tempoInput = document.getElementById('tempo');
+const tempoInput = document.querySelector('[name="tempo"]');
 const commentsField = document.querySelector('[name="comments"]');
 const charCount = document.getElementById('char-count');
 const saveRoutineToggle = document.getElementById('save-routine-toggle');
@@ -120,6 +131,16 @@ const routineBanner = document.getElementById('routine-banner');
 const routineSaveGroup = document.getElementById('routine-save-group');
 
 let routineMode = false;
+
+// Parse routine data from JSON block
+const routinesDataEl = document.getElementById('routines-data');
+const routinesMap = {};
+if (routinesDataEl) {
+    try {
+        const routinesArray = JSON.parse(routinesDataEl.textContent);
+        routinesArray.forEach(r => { routinesMap[r.id] = r; });
+    } catch(e) { console.error('Failed to parse routines data:', e); }
+}
 
 function updateTempoVisibility() {
     const selectedType = practiceTypeSelect.value;
@@ -148,15 +169,14 @@ saveRoutineToggle.addEventListener('change', function() {
 });
 
 // Add click event listeners to routine cards
-document.addEventListener('DOMContentLoaded', function() {
-    const routineCards = document.querySelectorAll('.routine-item');
-    routineCards.forEach(card => {
-        card.addEventListener('click', function() {
-            const practiceType = this.dataset.practiceType;
-            const tempo = this.dataset.tempo;
-            const comments = this.dataset.comments;
-            selectRoutine(practiceType, tempo, comments);
-        });
+const routineCards = document.querySelectorAll('.routine-item');
+routineCards.forEach(card => {
+    card.addEventListener('click', function() {
+        const routineId = this.dataset.routineId;
+        const routine = routinesMap[routineId];
+        if (routine) {
+            selectRoutine(routine.practice_type, routine.tempo, routine.comments);
+        }
     });
 });
 
