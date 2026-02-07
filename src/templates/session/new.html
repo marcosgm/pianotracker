@@ -5,32 +5,33 @@
 {% block content %}
 <div class="section">
     <h1 class="page-title">Log a Practice Session</h1>
-    
+
     {% if routines %}
     <div class="card" style="background-color: #f0f8ff; border-left: 4px solid #3498db;">
-        <h2 class="card-title">🎯 Quick Select: Past Routines</h2>
-        <p style="margin-bottom: 1rem; color: #7f8c8d;">Click a routine below to quickly pre-fill the form with that practice combination:</p>
-        
+        <h2 class="card-title">🎯 Saved Routines</h2>
+        <p style="margin-bottom: 1rem; color: #7f8c8d;">Click a routine to pre-fill the form. Only the tempo (BPM) can be adjusted.</p>
+
         <div class="grid grid-2">
             {% for routine in routines %}
-            <div class="routine-item" style="padding: 1rem; background: white; border: 1px solid #bdc3c7; border-radius: 4px; cursor: pointer; transition: all 0.3s; margin-bottom: 0.5rem;" onclick="selectRoutine({{ routine.id }}, '{{ routine.practice_type }}', {{ routine.tempo or 'null' }}, {{ routine.comments|tojson }})">
-                <div style="font-weight: 600; color: #2c3e50;">{{ routine.practice_type }}</div>
-                {% if routine.tempo %}
-                <div style="color: #3498db;">@ {{ routine.tempo }} BPM</div>
-                {% endif %}
-                {% if routine.comments %}
-                <div style="font-size: 0.9rem; color: #7f8c8d;">{{ routine.comments[:50] }}{% if routine.comments|length > 50 %}...{% endif %}</div>
-                {% endif %}
-                <div style="font-size: 0.85rem; color: #95a5a6; margin-top: 0.5rem;">Last used: {% if routine.last_used_at %}{{ routine.last_used_at.strftime('%b %d') }}{% else %}Today{% endif %}</div>
+            <div class="routine-item" id="routine-card-{{ routine.id }}" style="padding: 1rem; background: white; border: 1px solid #bdc3c7; border-radius: 4px; cursor: pointer; transition: all 0.3s; margin-bottom: 0.5rem;" onclick="selectRoutine('{{ routine.practice_type }}', {{ routine.tempo or 'null' }}, {{ routine.comments|tojson }})">
+                <div style="font-weight: 600; color: #2c3e50;">{{ routine.name }}</div>
+                <div style="font-size: 0.9rem; color: #7f8c8d;">{{ routine.practice_type }}{% if routine.tempo %} @ {{ routine.tempo }} BPM{% endif %}</div>
+                <div style="font-size: 0.85rem; color: #95a5a6;">{{ routine.comments[:80] }}{% if routine.comments|length > 80 %}...{% endif %}</div>
+                <div style="font-size: 0.8rem; color: #bdc3c7; margin-top: 0.25rem;">Last used: {% if routine.last_used_at %}{{ routine.last_used_at.strftime('%b %d') }}{% else %}Never{% endif %}</div>
             </div>
             {% endfor %}
         </div>
     </div>
     {% endif %}
 
-    <div class="card">
-        <h2 class="card-title">{% if routines %}Create New or Edit Routine{% else %}Create Your First Session{% endif %}</h2>
-        
+    <div class="card" id="session-form">
+        <h2 class="card-title" id="form-title">{% if routines %}New Session{% else %}Create Your First Session{% endif %}</h2>
+
+        <div id="routine-banner" style="display: none; margin-bottom: 1rem; padding: 0.75rem; background: #eaf6ff; border-radius: 4px; display: none;">
+            <span>Pre-filled from routine — only BPM is editable.</span>
+            <a href="#" onclick="clearRoutine(); return false;" style="margin-left: 0.5rem; color: #e74c3c;">Clear</a>
+        </div>
+
         <form method="POST" novalidate>
             {{ form.hidden_tag() }}
 
@@ -73,9 +74,26 @@
                         {% endfor %}
                     </div>
                 {% else %}
-                    {{ form.comments(maxlength=500, placeholder="e.g., C Major scales, increasing tempo; Alberti bass patterns; Moonlight Sonata 1st movement") }}
+                    {{ form.comments(maxlength=500, placeholder="Describe your practice session...") }}
                 {% endif %}
                 <div class="char-count"><span id="char-count">0</span> / 500 characters</div>
+            </div>
+
+            <div class="form-group" id="routine-save-group">
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                    <input type="checkbox" id="save-routine-toggle">
+                    Save this as a Routine
+                </label>
+                <div id="routine-name-wrapper" style="display: none; margin-top: 0.5rem;">
+                    {{ form.routine_name(placeholder="e.g., Morning Scales, Beethoven Practice", class="form-control") }}
+                    {% if form.routine_name.errors %}
+                    <div class="form-error">
+                        {% for error in form.routine_name.errors %}
+                            <div>{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
             </div>
 
             <div class="form-group">
@@ -86,42 +104,93 @@
 </div>
 
 <script>
-// Show/hide tempo field based on practice type
 const practiceTypeSelect = document.querySelector('[name="practice_type"]');
 const tempoGroup = document.getElementById('tempo-group');
-const tempoInput = document.querySelector('[name="tempo"]');
+const tempoInput = document.getElementById('tempo');
 const commentsField = document.querySelector('[name="comments"]');
 const charCount = document.getElementById('char-count');
+const saveRoutineToggle = document.getElementById('save-routine-toggle');
+const routineNameWrapper = document.getElementById('routine-name-wrapper');
+const routineBanner = document.getElementById('routine-banner');
+const routineSaveGroup = document.getElementById('routine-save-group');
+
+let routineMode = false;
 
 function updateTempoVisibility() {
     const selectedType = practiceTypeSelect.value;
     if (['Chords', 'Scales'].includes(selectedType)) {
         tempoGroup.style.display = 'block';
+        tempoInput.disabled = false;
     } else {
         tempoGroup.style.display = 'none';
         tempoInput.value = '';
+        tempoInput.disabled = true;
     }
 }
 
-// Update character count
 commentsField.addEventListener('input', function() {
     charCount.textContent = this.value.length;
 });
 
-// Initial setup
 practiceTypeSelect.addEventListener('change', updateTempoVisibility);
 updateTempoVisibility();
 
-// Select routine function
-function selectRoutine(routineId, practiceType, tempo, comments) {
+saveRoutineToggle.addEventListener('change', function() {
+    routineNameWrapper.style.display = this.checked ? 'block' : 'none';
+    if (!this.checked) {
+        document.querySelector('[name="routine_name"]').value = '';
+    }
+});
+
+function selectRoutine(practiceType, tempo, comments) {
+    routineMode = true;
+
+    // Pre-fill and lock practice type
     practiceTypeSelect.value = practiceType;
-    tempoInput.value = tempo || '';
+    practiceTypeSelect.disabled = true;
+
+    // Pre-fill and lock comments
     commentsField.value = comments || '';
+    commentsField.readOnly = true;
+    commentsField.style.backgroundColor = '#f5f5f5';
     charCount.textContent = (comments || '').length;
+
+    // Show tempo for the selected type, set value
     updateTempoVisibility();
-    
+    tempoInput.value = tempo || '';
+
+    // Show banner, hide "Save as routine"
+    routineBanner.style.display = 'block';
+    routineSaveGroup.style.display = 'none';
+    saveRoutineToggle.checked = false;
+    routineNameWrapper.style.display = 'none';
+
     // Scroll to form
-    document.querySelector('.card').scrollIntoView({ behavior: 'smooth' });
+    document.getElementById('session-form').scrollIntoView({ behavior: 'smooth' });
 }
+
+function clearRoutine() {
+    routineMode = false;
+
+    // Unlock practice type
+    practiceTypeSelect.disabled = false;
+
+    // Unlock comments
+    commentsField.readOnly = false;
+    commentsField.style.backgroundColor = '';
+
+    // Hide banner, show "Save as routine"
+    routineBanner.style.display = 'none';
+    routineSaveGroup.style.display = 'block';
+
+    updateTempoVisibility();
+}
+
+// Before submit: ensure disabled select gets submitted via a hidden input
+document.querySelector('form[method="POST"]').addEventListener('submit', function() {
+    if (practiceTypeSelect.disabled) {
+        practiceTypeSelect.disabled = false;
+    }
+});
 </script>
 {% endblock %}

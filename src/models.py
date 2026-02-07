@@ -45,7 +45,7 @@ class PracticeSession(db.Model):
         db.String(20), nullable=False
     )  # Chords, Scales, Course, Songs
     tempo = db.Column(db.Integer, nullable=True)  # 40-180 BPM, or NULL
-    comments = db.Column(db.Text, nullable=True)  # Optional documentation
+    comments = db.Column(db.Text, nullable=True)  # Optional session description
     session_date = db.Column(db.Date, nullable=False)
     session_time = db.Column(db.Time, nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
@@ -60,23 +60,23 @@ class PracticeSession(db.Model):
 
 
 class PracticeRoutine(db.Model):
-    """Practice routine model - auto-derived from unique session combinations."""
+    """Named practice routine saved by the user."""
 
     __tablename__ = "practice_routine"
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    name = db.Column(db.String(100), nullable=False)  # User-chosen routine name
     practice_type = db.Column(
         db.String(20), nullable=False
     )  # Chords, Scales, Course, Songs
-    tempo = db.Column(db.Integer, nullable=True)  # 40-180 BPM, or NULL
-    comments = db.Column(db.Text, nullable=True)  # Optional documentation
+    tempo = db.Column(db.Integer, nullable=True)  # Default tempo, or NULL
+    comments = db.Column(db.Text, nullable=False)  # Routine description
     last_used_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     __table_args__ = (
-        db.UniqueConstraint("user_id", "practice_type", "tempo", "comments",
-                           name="uq_user_routine"),
+        db.UniqueConstraint("user_id", "name", name="uq_user_routine_name"),
         db.Index("ix_routine_user_recency", "user_id", "last_used_at"),
     )
 

@@ -9,7 +9,7 @@ from src.models import User, PracticeSession, PracticeRoutine
 from src.forms import RegistrationForm, LoginForm, PracticeSessionForm
 from src.utils import (
     validate_email, validate_password, hash_password, check_password,
-    validate_practice_type, validate_tempo, validate_comments,
+    validate_practice_type, validate_tempo, validate_comments, validate_routine_name,
     create_or_update_routine, get_user_routines,
     calculate_total_sessions, calculate_most_frequent_type, calculate_average_tempo
 )
@@ -143,7 +143,21 @@ def new_session():
     form = PracticeSessionForm()
     routines = get_user_routines(user_id)
 
-    if form.validate_on_submit():
+    if request.method == "POST":
+        # Clear tempo process errors for non-tempo practice types
+        practice_type = form.practice_type.data
+        if practice_type not in ("Chords", "Scales"):
+            form.tempo.process_errors = []
+            form.tempo.errors = []
+            form.tempo.data = None
+
+        # Don't require routine_name for validation
+        if not form.routine_name.data:
+            form.routine_name.errors = []
+
+        if not form.validate():
+            return render_template("session/new.html", form=form, routines=routines)
+
         # Validate practice type
         is_valid, error = validate_practice_type(form.practice_type.data)
         if not is_valid:
@@ -157,7 +171,7 @@ def new_session():
             flash(error, "danger")
             return render_template("session/new.html", form=form, routines=routines), 400
 
-        # Validate comments
+        # Validate comments (mandatory)
         is_valid, error = validate_comments(form.comments.data)
         if not is_valid:
             flash(error, "danger")
@@ -168,20 +182,25 @@ def new_session():
             user_id=user_id,
             practice_type=form.practice_type.data,
             tempo=tempo_value,
-            comments=form.comments.data if form.comments.data else None,
+            comments=form.comments.data.strip(),
             session_date=date.today(),
             session_time=datetime.now().time()
         )
         db.session.add(session_obj)
         db.session.commit()
 
-        # Create or update routine
-        create_or_update_routine(
-            user_id=user_id,
-            practice_type=form.practice_type.data,
-            tempo=tempo_value,
-            comments=form.comments.data if form.comments.data else None
-        )
+        # Optionally save as a named routine
+        routine_name = form.routine_name.data
+        if routine_name and routine_name.strip():
+            is_valid, error = validate_routine_name(routine_name)
+            if is_valid:
+                create_or_update_routine(
+                    user_id=user_id,
+                    name=routine_name.strip(),
+                    practice_type=form.practice_type.data,
+                    tempo=tempo_value,
+                    comments=form.comments.data.strip()
+                )
 
         flash("Session logged successfully!", "success")
         return redirect(url_for("main.session_history", new="true"))

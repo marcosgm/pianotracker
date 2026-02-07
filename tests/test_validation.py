@@ -143,12 +143,25 @@ class TestTempoValidation:
 
 
 class TestCommentsValidation:
-    """Tests for comments validation."""
+    """Tests for comments validation (comments are mandatory)."""
 
-    def test_valid_empty_comments(self):
-        """Test that empty comments are valid."""
+    def test_empty_comments_rejected(self):
+        """Test that empty comments are rejected."""
         is_valid, error = validate_comments("")
-        assert is_valid is True
+        assert is_valid is False
+        assert "required" in error.lower()
+
+    def test_blank_comments_rejected(self):
+        """Test that whitespace-only comments are rejected."""
+        is_valid, error = validate_comments("   ")
+        assert is_valid is False
+        assert "required" in error.lower()
+
+    def test_none_comments_rejected(self):
+        """Test that None comments are rejected."""
+        is_valid, error = validate_comments(None)
+        assert is_valid is False
+        assert "required" in error.lower()
 
     def test_valid_comments(self):
         """Test valid comments."""
@@ -168,7 +181,31 @@ class TestCommentsValidation:
         assert is_valid is False
         assert "500 characters" in error
 
-    def test_none_comments(self):
-        """Test None as comments."""
-        is_valid, error = validate_comments(None)
+
+class TestRoutineNameValidation:
+    """Tests for routine name validation."""
+
+    def test_valid_routine_name(self):
+        """Test valid routine name."""
+        from src.utils import validate_routine_name
+        is_valid, error = validate_routine_name("Morning Scales")
         assert is_valid is True
+
+    def test_empty_routine_name_rejected(self):
+        """Test that empty name is rejected."""
+        from src.utils import validate_routine_name
+        is_valid, error = validate_routine_name("")
+        assert is_valid is False
+
+    def test_blank_routine_name_rejected(self):
+        """Test that whitespace-only name is rejected."""
+        from src.utils import validate_routine_name
+        is_valid, error = validate_routine_name("   ")
+        assert is_valid is False
+
+    def test_routine_name_exceeds_max_length(self):
+        """Test name over 100 characters is rejected."""
+        from src.utils import validate_routine_name
+        is_valid, error = validate_routine_name("x" * 101)
+        assert is_valid is False
+        assert "100 characters" in error

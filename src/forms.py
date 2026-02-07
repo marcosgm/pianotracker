@@ -4,7 +4,7 @@ Flask-WTF forms for Piano Session Tracker.
 
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, SelectField, IntegerField, TextAreaField
-from wtforms.validators import DataRequired, Email, Length
+from wtforms.validators import DataRequired, Email, Length, Optional
 from src.utils import VALID_PRACTICE_TYPES
 
 
@@ -61,10 +61,17 @@ class PracticeSessionForm(FlaskForm):
     )
     tempo = IntegerField(
         "Tempo (BPM)",
-        validators=[]  # Validation handled server-side based on practice_type
+        validators=[Optional()]
     )
     comments = TextAreaField(
-        "Comments (optional)",
-        validators=[Length(max=500, message="Comments must be 500 characters or less")]
+        "Comments",
+        validators=[
+            DataRequired(message="Comments are required"),
+            Length(max=500, message="Comments must be 500 characters or less")
+        ]
+    )
+    routine_name = StringField(
+        "Save this Routine as",
+        validators=[Optional(), Length(max=100, message="Routine name must be 100 characters or less")]
     )
     submit = SubmitField("Save Session")

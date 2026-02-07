@@ -100,16 +100,32 @@ def validate_tempo(tempo: Optional[str], practice_type: str) -> Tuple[bool, Opti
 
 def validate_comments(comments: Optional[str]) -> Tuple[bool, Optional[str]]:
     """
-    Validate session comments.
+    Validate session comments (mandatory).
 
     Returns:
         (is_valid, error_message)
     """
-    if comments is None or comments == "":
-        return True, None
+    if not comments or not comments.strip():
+        return False, "Comments are required"
 
     if len(comments) > 500:
         return False, "Comments must be 500 characters or less"
+
+    return True, None
+
+
+def validate_routine_name(name: Optional[str]) -> Tuple[bool, Optional[str]]:
+    """
+    Validate routine name (when provided).
+
+    Returns:
+        (is_valid, error_message)
+    """
+    if not name or not name.strip():
+        return False, "Routine name is required"
+
+    if len(name) > 100:
+        return False, "Routine name must be 100 characters or less"
 
     return True, None
 
@@ -125,38 +141,38 @@ def check_password(password_hash: str, password: str) -> bool:
 
 
 def create_or_update_routine(
-    user_id: int, practice_type: str, tempo: Optional[int], comments: Optional[str]
+    user_id: int, name: str, practice_type: str, tempo: Optional[int], comments: str
 ) -> PracticeRoutine:
     """
-    Create a new routine or update last_used_at for existing routine.
+    Create a new named routine or update an existing one.
 
     Args:
         user_id: User ID
+        name: User-chosen routine name
         practice_type: Type of practice (Chords, Scales, Course, Songs)
-        tempo: Optional tempo value (40-180 for Chords/Scales, None for others)
-        comments: Optional comments text
+        tempo: Optional default tempo (40-180 for Chords/Scales, None for others)
+        comments: Practice description
 
     Returns:
         PracticeRoutine instance (newly created or updated)
     """
-    # Normalize None values for consistency in database
-    comments = comments if comments and comments.strip() else None
-
-    # Find existing routine with same combination
+    # Find existing routine with same name for this user
     routine = PracticeRoutine.query.filter_by(
         user_id=user_id,
-        practice_type=practice_type,
-        tempo=tempo,
-        comments=comments
+        name=name
     ).first()
 
     if routine:
-        # Update existing routine's last_used_at
+        # Update existing routine
+        routine.practice_type = practice_type
+        routine.tempo = tempo
+        routine.comments = comments
         routine.last_used_at = datetime.utcnow()
     else:
         # Create new routine
         routine = PracticeRoutine(
             user_id=user_id,
+            name=name,
             practice_type=practice_type,
             tempo=tempo,
             comments=comments,
